@@ -1,0 +1,46 @@
+name: bioresearch-ai
+
+services:
+  db:
+    # pgvector build of PostgreSQL: vector search lands in M06 without a database swap.
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bioresearch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bioresearch}
+      POSTGRES_DB: ${POSTGRES_DB:-bioresearch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Loopback only: lets local tooling and pytest reach the DB without exposing it on the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-bioresearch}:${POSTGRES_PASSWORD:-bioresearch}@db:5432/${POSTGRES_DB:-bioresearch}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
