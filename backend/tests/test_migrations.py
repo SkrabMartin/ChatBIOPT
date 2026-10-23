@@ -32,3 +32,12 @@ def test_upgrade_to_head_and_downgrade_to_base_round_trip(alembic_config: Config
     command.upgrade(alembic_config, "head")
     assert _current_revisions(database_url) == [head]
     command.downgrade(alembic_config, "base")
+
+
+def test_models_match_migrations(alembic_config: Config) -> None:
+    """ORM models and the migration chain describe the same schema (fails if a migration is missing)."""
+    command.upgrade(alembic_config, "head")
+    try:
+        command.check(alembic_config)
+    finally:
+        command.downgrade(alembic_config, "base")

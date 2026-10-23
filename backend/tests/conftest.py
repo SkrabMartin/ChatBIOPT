@@ -1,5 +1,6 @@
 import os
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
 import psycopg
@@ -56,7 +57,9 @@ def make_settings(database_url: str) -> Settings:
     return Settings(_env_file=None, app_env="test", database_url=database_url)
 
 
-async def _client_for(settings: Settings) -> AsyncIterator[AsyncClient]:
+@asynccontextmanager
+async def running_app(settings: Settings) -> AsyncIterator[AsyncClient]:
+    """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start."""
     app = create_app(settings)
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
@@ -65,14 +68,18 @@ async def _client_for(settings: Settings) -> AsyncIterator[AsyncClient]:
 
 
 @pytest.fixture
-async def client(migrated_database: str) -> AsyncIterator[AsyncClient]:
-    async for c in _client_for(make_settings(migrated_database)):
+def start_app(migrated_database: str) -> Callable[[], AbstractAsyncContextManager[AsyncClient]]:
+    return lambda: running_app(make_settings(migrated_database))
+
+
+@pytest.fixture
+async def client(start_app: Callable[[], AbstractAsyncContextManager[AsyncClient]]) -> AsyncIterator[AsyncClient]:
+    async with start_app() as c:
         yield c
 
 
 @pytest.fixture
 async def client_without_database() -> AsyncIterator[AsyncClient]:
     # Port 1 on localhost refuses connections immediately: a deterministic "database down".
-    settings = make_settings("postgresql+psycopg://nobody:nothing@127.0.0.1:1/none")
-    async for c in _client_for(settings):
+    async with running_app(make_settings("postgresql+psycopg://nobody:nothing@127.0.0.1:1/none")) as c:
         yield c

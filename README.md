@@ -2,7 +2,9 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M01 Foundation.** Only the platform skeleton exists so far: API, database, migrations, web UI shell, tests and CI. There is no literature search, LLM or analysis code yet; see the [roadmap](#roadmap).
+> **Status: M02 Persistent Workspace.** Projects, conversations and messages are stored in PostgreSQL and editable through the API and web UI. There is no literature search or LLM yet: messages are saved, not answered (see the [roadmap](#roadmap)).
+>
+> **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
 ## Stack
 
@@ -32,7 +34,7 @@ docker compose up -d --build --wait
 
 | URL | What |
 |---|---|
-| http://localhost:8080 | Web UI (dashboard with live system status) |
+| http://localhost:8080 | Web UI: dashboard, projects, conversations |
 | http://localhost:8080/api/v1/health | Health through the frontend proxy |
 | http://localhost:8000/api/v1/docs | OpenAPI / Swagger UI (direct to backend) |
 
@@ -90,13 +92,42 @@ CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose st
 ```json
 {
   "status": "ok",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0001", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0002", "latency_ms": 1.2 }
 }
 ```
 
 Every response carries an `X-Request-ID` header. A valid client-supplied ID is reused, otherwise the server generates one. The same ID appears as `trace_id` in the JSON logs and in error bodies.
+
+### Workspace
+
+| Method & route | Purpose |
+|---|---|
+| `GET /api/v1/projects?limit=&offset=` | List projects, most recently updated first |
+| `POST /api/v1/projects` | Create `{title, description?}` |
+| `GET` / `PATCH` / `DELETE /api/v1/projects/{id}` | Read / partial update / delete (cascades to conversations and messages) |
+| `GET /api/v1/projects/{id}/conversations?limit=&offset=` | List a project's conversations |
+| `POST /api/v1/projects/{id}/conversations` | Create `{title}` |
+| `GET` / `PATCH` / `DELETE /api/v1/conversations/{id}` | Read / rename / delete (cascades to messages) |
+| `GET /api/v1/conversations/{id}/messages?after_sequence=&limit=` | Messages in `sequence` order; cursor pagination with `has_more` |
+| `POST /api/v1/conversations/{id}/messages` | Append `{content}` as a `user` message |
+
+Contract rules:
+
+- **Titles:** 1–200 characters after trimming. Descriptions are at most 5000 characters, and a blank description is stored as `null`. Message content is 1–20000 characters, must not be blank, and is stored verbatim.
+- **Unknown fields** in request bodies are rejected with `422`.
+- **`PATCH` is partial:** omitted fields stay unchanged. `"description": null` clears the description; `"title": null` is rejected.
+- **Message order:** each message gets a per-conversation `sequence` (1, 2, 3, …). Sequences are unique and have no gaps, even when clients post concurrently. Clients can only author `user` messages; `assistant` messages will be written server-side by AI runs (M04).
+- **List pages:** `{items, total, limit, offset}`, with `limit` 1–200. Message pages are `{items, has_more}`, with `limit` 1–500.
+- **Errors:** every error uses one envelope:
+
+```json
+{ "error": { "code": "validation_error", "message": "Request validation failed", "trace_id": "…",
+             "details": [{ "loc": ["body", "title"], "msg": "String should have at least 1 character", "type": "string_too_short" }] } }
+```
+
+Codes are `validation_error` (422), `not_found` (404), `method_not_allowed` (405) and `internal_error` (500).
 
 ## Repository layout
 
@@ -104,15 +135,18 @@ Every response carries an `X-Request-ID` header. A valid client-supplied ID is r
 backend/
   app/
     api/v1/      # routers (HTTP parsing only)
-    core/        # settings, JSON logging, request-context middleware
+    core/        # settings, JSON logging, request-context middleware, error envelope
     db/          # declarative base, async engine/session
+    models/      # SQLAlchemy models (projects, conversations, messages)
     schemas/     # Pydantic API contracts
-  alembic/       # migrations (0001 = baseline)
+    services/    # domain operations (ProjectService, ConversationService)
+  alembic/       # migrations (0001 baseline, 0002 workspace)
   tests/
 frontend/
   src/
     app/         # providers, router, layout
-    features/    # feature modules (dashboard)
+    components/  # shared UI primitives
+    features/    # dashboard, projects, chat
     lib/api/     # typed fetch client + Zod response schemas
 compose.yaml
 .github/workflows/ci.yml
@@ -123,7 +157,7 @@ compose.yaml
 | Milestone | Scope |
 |---|---|
 | **M01 Foundation** ✅ | Docker Compose, FastAPI, React, PostgreSQL, migrations, tests, CI |
-| M02 Persistent Workspace | Projects, conversations, messages; CRUD and UI |
+| **M02 Persistent Workspace** ✅ | Projects, conversations, messages; CRUD and UI |
 | M03 Source Lookup | Read-only PubMed / Europe PMC search with stable IDs and provenance, no LLM |
 | M04 LLM Gateway | Local Ollama or optional cloud model, streaming, usage tracking |
 | M05 Evidence Ingestion | Metadata, open-access documents, chunking, versioning |

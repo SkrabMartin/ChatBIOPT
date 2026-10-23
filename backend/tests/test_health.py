@@ -1,9 +1,11 @@
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from httpx import AsyncClient
 
 from app import __version__
 
 
-async def test_health_reports_database_and_applied_revision(client: AsyncClient) -> None:
+async def test_health_reports_database_and_applied_revision(client: AsyncClient, alembic_config: Config) -> None:
     response = await client.get("/api/v1/health")
 
     assert response.status_code == 200
@@ -12,7 +14,7 @@ async def test_health_reports_database_and_applied_revision(client: AsyncClient)
     assert body["version"] == __version__
     assert body["environment"] == "test"
     assert body["database"]["status"] == "ok"
-    assert body["database"]["migration_revision"] == "0001"
+    assert body["database"]["migration_revision"] == ScriptDirectory.from_config(alembic_config).get_current_head()
     assert body["database"]["latency_ms"] >= 0
 
 

@@ -1,6 +1,9 @@
 import { NavLink, Outlet } from 'react-router'
 
-const navItems = [{ to: '/', label: 'Dashboard' }]
+const navItems = [
+  { to: '/', label: 'Dashboard', end: true },
+  { to: '/projects', label: 'Projects', end: false },
+]
 
 export function Layout() {
   return (
@@ -15,7 +18,7 @@ export function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end
+              end={item.end}
               className={({ isActive }) =>
                 `rounded-md px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-medium text-teal-800' : 'text-slate-600 hover:bg-slate-100'}`
               }

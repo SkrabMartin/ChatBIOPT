@@ -77,6 +77,16 @@ jobs:
         run: |
           curl --fail --silent --show-error http://127.0.0.1:8080/ | grep -q "<div id=\"root\">"
           curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
+      - name: Workspace data survives a full stack restart
+        run: |
+          api=http://127.0.0.1:8080/api/v1
+          project=$(curl -fsS -X POST $api/projects -H 'Content-Type: application/json' -d '{"title":"CI smoke"}' | jq -r .id)
+          conversation=$(curl -fsS -X POST $api/projects/$project/conversations -H 'Content-Type: application/json' -d '{"title":"thread"}' | jq -r .id)
+          curl -fsS -X POST $api/conversations/$conversation/messages -H 'Content-Type: application/json' -d '{"content":"persist me"}' >/dev/null
+          docker compose down
+          docker compose up -d --wait --wait-timeout 180
+          test "$(curl -fsS $api/projects/$project | jq -r .title)" = "CI smoke"
+          test "$(curl -fsS $api/conversations/$conversation/messages | jq -r '.items[0].content')" = "persist me"
       - name: Logs on failure
         if: failure()
         run: docker compose logs
