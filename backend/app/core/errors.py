@@ -28,6 +28,22 @@ class NotFoundError(AppError):
     code = "not_found"
 
 
+class UpstreamError(AppError):
+    """An external data provider failed. Distinct from "no results": callers must never present it as empty."""
+
+    status_code = 502
+    code = "upstream_unavailable"
+
+
+class UpstreamTimeoutError(UpstreamError):
+    status_code = 504
+    code = "upstream_timeout"
+
+
+class UpstreamInvalidResponseError(UpstreamError):
+    code = "upstream_invalid_response"
+
+
 _HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
 
 

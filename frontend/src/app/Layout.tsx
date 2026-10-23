@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router'
 const navItems = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/projects', label: 'Projects', end: false },
+  { to: '/literature', label: 'Literature', end: false },
 ]
 
 export function Layout() {

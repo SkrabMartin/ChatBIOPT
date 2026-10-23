@@ -11,16 +11,18 @@ dependencies = [
     "alembic>=1.16",
     "pydantic>=2.11",
     "pydantic-settings>=2.10",
+    "httpx>=0.28",
+    "defusedxml>=0.7",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.4",
     "pytest-asyncio>=1.2",
-    "httpx>=0.28",
     "asgi-lifespan>=2.1",
     "ruff>=0.14",
     "mypy>=1.18",
+    "types-defusedxml",
 ]
 
 [build-system]
@@ -37,6 +39,7 @@ include = ["app*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = ["error"]
+markers = ["live: calls real external services; opt-in via RUN_LIVE_TESTS=1"]
 testpaths = ["tests"]
 
 [tool.ruff]

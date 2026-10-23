@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ConversationPage } from '../features/chat/ConversationPage'
+import { LiteraturePage } from '../features/literature/LiteraturePage'
+import { LiteratureRecordPage } from '../features/literature/LiteratureRecordPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ProjectPage } from '../features/projects/ProjectPage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
@@ -27,6 +29,8 @@ const router = createBrowserRouter([
       { path: 'projects', element: <ProjectsPage /> },
       { path: 'projects/:projectId', element: <ProjectPage /> },
       { path: 'projects/:projectId/conversations/:conversationId', element: <ConversationPage /> },
+      { path: 'literature', element: <LiteraturePage /> },
+      { path: 'literature/pubmed/:pmid', element: <LiteratureRecordPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

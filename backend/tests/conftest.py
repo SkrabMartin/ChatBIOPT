@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
+import httpx
 import psycopg
 import pytest
 from alembic import command
@@ -13,6 +14,7 @@ from sqlalchemy.engine import make_url
 
 from app.core.config import Settings
 from app.main import create_app
+from tests.fakes import FakeNCBI
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -54,13 +56,17 @@ def migrated_database(alembic_config: Config, database_url: str) -> Iterator[str
 
 
 def make_settings(database_url: str) -> Settings:
-    return Settings(_env_file=None, app_env="test", database_url=database_url)
+    # No backoff delay in tests; retry *behaviour* is still exercised.
+    return Settings(_env_file=None, app_env="test", database_url=database_url, ncbi_backoff_base_s=0)
 
 
 @asynccontextmanager
-async def running_app(settings: Settings) -> AsyncIterator[AsyncClient]:
-    """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start."""
-    app = create_app(settings)
+async def running_app(settings: Settings, ncbi: FakeNCBI | None = None) -> AsyncIterator[AsyncClient]:
+    """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start.
+
+    Outbound HTTP always goes to a fake: tests never reach the real NCBI service.
+    """
+    app = create_app(settings, http_transport=httpx.MockTransport((ncbi or FakeNCBI()).handle))
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -68,8 +74,13 @@ async def running_app(settings: Settings) -> AsyncIterator[AsyncClient]:
 
 
 @pytest.fixture
-def start_app(migrated_database: str) -> Callable[[], AbstractAsyncContextManager[AsyncClient]]:
-    return lambda: running_app(make_settings(migrated_database))
+def ncbi() -> FakeNCBI:
+    return FakeNCBI()
+
+
+@pytest.fixture
+def start_app(migrated_database: str, ncbi: FakeNCBI) -> Callable[[], AbstractAsyncContextManager[AsyncClient]]:
+    return lambda: running_app(make_settings(migrated_database), ncbi)
 
 
 @pytest.fixture

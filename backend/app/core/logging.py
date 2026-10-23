@@ -41,3 +41,7 @@ def configure_logging(level: str) -> None:
     for name in ("uvicorn", "uvicorn.error"):
         logging.getLogger(name).handlers[:] = []
         logging.getLogger(name).propagate = True
+
+    # httpx logs full request URLs at INFO, which would leak the NCBI API key and users' queries.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)

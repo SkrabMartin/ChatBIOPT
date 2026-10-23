@@ -1,0 +1,28 @@
+{
+ "header": {
+  "type": "esearch",
+  "version": "0.3"
+ },
+ "esearchresult": {
+  "count": "1093",
+  "retmax": "4",
+  "retstart": "0",
+  "idlist": [
+   "42906764",
+   "42893817",
+   "42857877",
+   "18772890"
+  ],
+  "translationset": [
+   {
+    "from": "TP53",
+    "to": "\"tp53 protein, human\"[Supplementary Concept] OR \"tp53 protein, human\"[All Fields] OR \"tp53\"[All Fields]"
+   },
+   {
+    "from": "glioblastoma",
+    "to": "\"glioblastoma\"[MeSH Terms] OR \"glioblastoma\"[All Fields] OR \"glioblastomas\"[All Fields] OR \"glioblastoma's\"[All Fields]"
+   }
+  ],
+  "querytranslation": "(\"tp53 protein human\"[Supplementary Concept] OR \"tp53 protein human\"[All Fields] OR \"tp53\"[All Fields]) AND (\"glioblastoma\"[MeSH Terms] OR \"glioblastoma\"[All Fields] OR \"glioblastomas\"[All Fields] OR \"glioblastoma s\"[All Fields])"
+ }
+}

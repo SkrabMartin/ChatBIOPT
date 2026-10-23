@@ -2,7 +2,7 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M02 Persistent Workspace.** Projects, conversations and messages are stored in PostgreSQL and editable through the API and web UI. There is no literature search or LLM yet: messages are saved, not answered (see the [roadmap](#roadmap)).
+> **Status: M03 Source Lookup.** Projects, conversations and messages are persisted, and a read-only PubMed literature search returns normalized, provenance-tracked records with links to the originals. There is no LLM yet: messages are saved, not answered (see the [roadmap](#roadmap)).
 >
 > **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
@@ -70,6 +70,10 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `DATABASE_CONNECT_TIMEOUT_S` | `3` | DB connect timeout |
 | `HEALTH_CHECK_TIMEOUT_S` | `2.0` | Upper bound for the readiness probe |
 | `TEST_DATABASE_URL` | `…/bioresearch_test` | Used by pytest; the database is created automatically |
+| `NCBI_EMAIL` | — | Contact sent to NCBI with every request (requested by NCBI usage policy) |
+| `NCBI_API_KEY` | — | Optional; raises the PubMed rate limit from 3 to 10 requests/s |
+| `NCBI_TIMEOUT_S` | `10` | Per-request timeout for E-utilities |
+| `NCBI_MAX_ATTEMPTS` | `3` | Attempts per request for timeouts, connection errors, 429 and 5xx |
 
 ## Checks
 
@@ -83,7 +87,13 @@ cd frontend
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose stack and smoke-tests the UI and `/api/v1/health` through nginx.
+CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose stack and smoke-tests the UI, `/api/v1/health` and workspace persistence across a restart through nginx.
+
+Backend tests never call NCBI: they use recorded fixtures and a fake transport. A separate contract test checks the real PubMed API and runs only when you opt in:
+
+```bash
+cd backend && RUN_LIVE_TESTS=1 pytest -m live
+```
 
 ## API
 
@@ -92,9 +102,9 @@ CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose st
 ```json
 {
   "status": "ok",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0002", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0003", "latency_ms": 1.2 }
 }
 ```
 
@@ -127,7 +137,30 @@ Contract rules:
              "details": [{ "loc": ["body", "title"], "msg": "String should have at least 1 character", "type": "string_too_short" }] } }
 ```
 
-Codes are `validation_error` (422), `not_found` (404), `method_not_allowed` (405) and `internal_error` (500).
+Codes are `validation_error` (422), `not_found` (404), `method_not_allowed` (405), `upstream_unavailable` (502), `upstream_invalid_response` (502), `upstream_timeout` (504) and `internal_error` (500).
+
+### Literature (PubMed, read-only)
+
+| Method & route | Purpose |
+|---|---|
+| `POST /api/v1/literature/search` | `{query, limit?, offset?}` returns normalized PubMed records in PubMed's relevance order |
+| `GET /api/v1/literature/pubmed/{pmid}?refresh=` | Stored snapshot of a record; fetched from PubMed if unknown or when `refresh=true` |
+
+How a search runs:
+
+1. ESearch returns the matching PMIDs.
+2. EFetch returns the full records as XML.
+3. The XML is parsed safely with `defusedxml` and normalized (`normalizer_version: pubmed-v1`).
+4. Each record is upserted into `sources`, together with its canonical raw XML and a SHA-256 checksum, and its identifiers go into `source_identifiers`.
+5. The search itself is logged in `literature_searches`: query, PubMed's query translation, total count, ranked result IDs and retrieval time.
+
+Guarantees:
+
+- **Links come only from validated identifiers.** A PMID must be digits, a DOI must match `10.x/…` and a PMCID must be `PMC…`. A malformed identifier is dropped, never linked.
+- **A provider failure is an error, never an empty result.** Timeouts, outages and malformed payloads return `502`/`504`, and nothing from that request is stored.
+- **Rate limits are respected.** Requests are spaced to NCBI's limit (3/s, or 10/s with an API key). Timeouts, connection errors, 429 and 5xx are retried with exponential backoff and jitter; other 4xx are not retried. The limiter is per process, which is correct for the single-worker deployment.
+- **PubMed's paging limit is enforced.** ESearch only pages through the first 10,000 hits, so `offset + limit` must not exceed 10,000.
+- **Every record carries its provenance:** `retrieved_at`, `raw_payload_sha256` and `normalizer_version`.
 
 ## Repository layout
 
@@ -137,16 +170,17 @@ backend/
     api/v1/      # routers (HTTP parsing only)
     core/        # settings, JSON logging, request-context middleware, error envelope
     db/          # declarative base, async engine/session
-    models/      # SQLAlchemy models (projects, conversations, messages)
+    models/      # SQLAlchemy models (workspace, literature sources)
     schemas/     # Pydantic API contracts
-    services/    # domain operations (ProjectService, ConversationService)
-  alembic/       # migrations (0001 baseline, 0002 workspace)
-  tests/
+    services/    # domain operations (projects, conversations, literature)
+    integrations/# external providers: shared rate limit/retry, PubMed client + parser
+  alembic/       # migrations (0001 baseline, 0002 workspace, 0003 literature)
+  tests/         # fixtures/pubmed: recorded PubMed payloads (abstracts/affiliations replaced)
 frontend/
   src/
     app/         # providers, router, layout
     components/  # shared UI primitives
-    features/    # dashboard, projects, chat
+    features/    # dashboard, projects, chat, literature
     lib/api/     # typed fetch client + Zod response schemas
 compose.yaml
 .github/workflows/ci.yml
@@ -158,7 +192,7 @@ compose.yaml
 |---|---|
 | **M01 Foundation** ✅ | Docker Compose, FastAPI, React, PostgreSQL, migrations, tests, CI |
 | **M02 Persistent Workspace** ✅ | Projects, conversations, messages; CRUD and UI |
-| M03 Source Lookup | Read-only PubMed / Europe PMC search with stable IDs and provenance, no LLM |
+| **M03 Source Lookup** ✅ | Read-only PubMed search with stable IDs and provenance, no LLM |
 | M04 LLM Gateway | Local Ollama or optional cloud model, streaming, usage tracking |
 | M05 Evidence Ingestion | Metadata, open-access documents, chunking, versioning |
 | M06 Retrieval / RAG | Embeddings, hybrid FTS + vector search, validated citations |
