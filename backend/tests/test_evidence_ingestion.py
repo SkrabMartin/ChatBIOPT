@@ -60,6 +60,7 @@ async def test_open_access_article_is_ingested_with_abstract_full_text_and_chunk
         ("abstract", "done"),
         ("open_access", "done"),
         ("fulltext", "done"),
+        ("embed", "done"),
         ("verify", "done"),
     ]
 

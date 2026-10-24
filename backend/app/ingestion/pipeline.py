@@ -11,10 +11,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
+from app.ai.gateway.base import GatewayError
+from app.ai.gateway.router import ModelRouter
 from app.core.errors import AppError, NotFoundError
 from app.ingestion.chunking import CHUNKER_VERSION, Section
 from app.ingestion.documents import DocumentInput, store_document
@@ -24,6 +27,7 @@ from app.integrations.europepmc.jats import PARSER_VERSION as JATS_PARSER_VERSIO
 from app.integrations.europepmc.jats import parse_jats
 from app.integrations.pubmed.client import PubMedClient
 from app.models import Chunk, Document, IngestionJob, ProjectSource, Source, SourceIdentifier
+from app.retrieval.embeddings import embed_missing_chunks, resolve_space
 from app.schemas.literature import LiteratureRecord
 from app.services.literature import upsert_source
 from app.storage.object_store import ObjectStore, ObjectStoreError, sha256_hex
@@ -57,12 +61,18 @@ def abstract_sections(record: LiteratureRecord) -> list[Section]:
 
 class IngestionPipeline:
     def __init__(
-        self, pubmed: PubMedClient, europepmc: EuropePMCClient, store: ObjectStore, allowed_licenses: frozenset[str]
+        self,
+        pubmed: PubMedClient,
+        europepmc: EuropePMCClient,
+        store: ObjectStore,
+        allowed_licenses: frozenset[str],
+        models: ModelRouter | None = None,
     ) -> None:
         self.pubmed = pubmed
         self.europepmc = europepmc
         self.store = store
         self.allowed_licenses = allowed_licenses
+        self.models = models
 
     async def run(self, session: AsyncSession, job: IngestionJob) -> StepLog:
         log = StepLog()
@@ -158,10 +168,50 @@ class IngestionPipeline:
             )
         await checkpoint()
 
-        # 5. verify what is stored
+        # 5. embed chunks of the latest versions into the current embedding space
+        await self._embed(session, source_id, log)
+        await checkpoint()
+
+        # 6. verify what is stored
         await self._verify(session, source_id, log)
         await checkpoint()
         return log
+
+    async def _embed(self, session: AsyncSession, source_id: uuid.UUID, log: StepLog) -> None:
+        if self.models is None:
+            log.add("embed", "skipped", "No embedding model configured")
+            return
+        try:
+            space = await resolve_space(self.models)
+        except (GatewayError, AppError) as exc:
+            # Documents are still usable for keyword retrieval; a later refresh embeds what is missing.
+            log.add("embed", "skipped", f"Embeddings not created: {exc}")
+            return
+        other = aliased(Document)
+        newest_version = (
+            select(func.max(other.version))
+            .where(other.source_id == Document.source_id, other.kind == Document.kind)
+            .scalar_subquery()
+        )
+        latest = select(Document.id).where(Document.source_id == source_id, Document.version == newest_version)
+        chunk_ids = list(
+            await session.scalars(
+                select(Chunk.id).where(Chunk.document_id.in_(latest), Chunk.chunker_version == CHUNKER_VERSION)
+            )
+        )
+        try:
+            created = await embed_missing_chunks(session, space, chunk_ids)
+        except GatewayError as exc:
+            await session.rollback()
+            log.add("embed", "skipped", f"Embeddings not created: {exc.message}")
+            return
+        log.add(
+            "embed",
+            "done" if created else "unchanged",
+            f"{created} chunk(s) embedded" if created else "All chunks already embedded",
+            embedding_space=space.name,
+            chunks=len(chunk_ids),
+        )
 
     async def _full_text(
         self, session: AsyncSession, source: Source, pmcid: str, license_id: str | None, log: StepLog

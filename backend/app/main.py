@@ -59,7 +59,12 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
             allow_external=settings.allow_external_models,
         )
         app.state.model_router = model_router
-        run_manager = RunManager(app.state.session_factory, model_router, max_duration_s=settings.run_max_duration_s)
+        run_manager = RunManager(
+            app.state.session_factory,
+            model_router,
+            max_duration_s=settings.run_max_duration_s,
+            rag_top_k=settings.rag_top_k,
+        )
         app.state.run_manager = run_manager
         try:
             async with app.state.session_factory() as session:

@@ -12,6 +12,8 @@ class RunCreate(BaseModel):
 
     # Registry profile id; the registry's default when omitted.
     model_profile: str | None = None
+    # "auto": ground in the project's evidence library when it has passages, otherwise answer from the model alone.
+    grounding: Literal["auto", "project", "none"] = "auto"
 
 
 class RunRead(BaseModel):
@@ -37,9 +39,39 @@ class RunRead(BaseModel):
     finish_reason: str | None
     error_code: str | None
     error_message: str | None
+    grounding: Literal["none", "project"]
+    retrieval_version: str | None
+    embedding_space: str | None
+    answer_class: str | None
+    citation_stats: dict[str, int] | None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+
+
+class RunEvidenceRead(BaseModel):
+    """A passage given to a grounded run as `[label]`, with retrieval ranks and whether the answer cited it."""
+
+    label: str
+    rank: int
+    cited: bool
+    keyword_rank: int | None
+    semantic_rank: int | None
+    similarity: float | None
+    fused_score: float
+    chunk_id: uuid.UUID
+    text: str
+    section: str
+    section_title: str | None
+    start_offset: int
+    end_offset: int
+    document_id: uuid.UUID
+    document_kind: str
+    document_version: int
+    source_id: uuid.UUID
+    external_id: str
+    source_title: str
+    source_url: str
 
 
 class ModelProfileRead(BaseModel):

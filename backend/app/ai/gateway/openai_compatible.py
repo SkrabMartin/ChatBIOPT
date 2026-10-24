@@ -4,7 +4,15 @@ from typing import Any
 
 import httpx
 
-from app.ai.gateway.base import Availability, GatewayError, GatewayEvent, GenerationRequest, StreamEnd, TextDelta
+from app.ai.gateway.base import (
+    Availability,
+    GatewayError,
+    GatewayEvent,
+    GenerationRequest,
+    StreamEnd,
+    TextDelta,
+    check_vectors,
+)
 
 
 class OpenAICompatibleGateway:
@@ -30,6 +38,25 @@ class OpenAICompatibleGateway:
         if self._model in served:
             return Availability(True, revision=self._model)
         return Availability(False, reason=f"Model server does not serve {self._model}")
+
+    async def embed(self, texts: list[str], dimensions: int) -> list[list[float]]:
+        payload = {"model": self._model, "input": texts}
+        try:
+            response = await self._http.post(f"{self._base_url}/embeddings", json=payload, headers=self._headers)
+        except httpx.TimeoutException as exc:
+            raise GatewayError("model_timeout", "Model server did not return embeddings in time") from exc
+        except httpx.TransportError as exc:
+            raise GatewayError("model_unavailable", f"Model server is not reachable at {self._base_url}") from exc
+        if response.status_code in (401, 403, 404):
+            raise GatewayError("model_unavailable", f"Model server refused embeddings for {self._model}")
+        if not response.is_success:
+            raise GatewayError("model_error", f"Model server returned HTTP {response.status_code} for embeddings")
+        try:
+            data = sorted(response.json()["data"], key=lambda item: item["index"])
+            vectors = [item["embedding"] for item in data]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise GatewayError("model_error", "Model server sent a malformed embedding response") from exc
+        return check_vectors(vectors, len(texts), dimensions)
 
     async def stream(self, request: GenerationRequest) -> AsyncIterator[GatewayEvent]:
         payload = {

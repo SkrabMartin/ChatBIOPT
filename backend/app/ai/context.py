@@ -21,23 +21,36 @@ class BuiltContext:
     history_message_count: int  # conversation messages included (excludes the system prompt)
 
 
-def build_context(history: list[Message], *, context_window: int, max_output_tokens: int) -> BuiltContext:
+def input_budget_chars(context_window: int, max_output_tokens: int) -> int:
+    return (context_window - max_output_tokens) * CHARS_PER_TOKEN
+
+
+def build_context(
+    history: list[Message],
+    *,
+    context_window: int,
+    max_output_tokens: int,
+    system_prompt: str = SYSTEM_PROMPT,
+    latest_user_content: str | None = None,
+) -> BuiltContext:
     """System prompt + the most recent user/assistant messages that fit the model's window.
 
     Oldest messages are dropped first; the latest message is always kept or the build fails explicitly
-    rather than sending a silently truncated question.
+    rather than sending a silently truncated question. `latest_user_content` replaces the text of the latest
+    message (grounded runs put the question together with its evidence there).
     """
-    budget = (context_window - max_output_tokens) * CHARS_PER_TOKEN - len(SYSTEM_PROMPT)
+    budget = input_budget_chars(context_window, max_output_tokens) - len(system_prompt)
     selected: list[ChatMessage] = []
     for message in reversed(history):
         if message.role not in ("user", "assistant"):
             continue
-        cost = len(message.content)
+        content = latest_user_content if (not selected and latest_user_content is not None) else message.content
+        cost = len(content)
         if cost > budget:
             if not selected:
                 raise ContextTooLongError("The latest message is too long for this model's context window")
             break
         budget -= cost
-        selected.append(ChatMessage(role="user" if message.role == "user" else "assistant", content=message.content))
+        selected.append(ChatMessage(role="user" if message.role == "user" else "assistant", content=content))
     selected.reverse()
-    return BuiltContext(messages=[ChatMessage("system", SYSTEM_PROMPT), *selected], history_message_count=len(selected))
+    return BuiltContext(messages=[ChatMessage("system", system_prompt), *selected], history_message_count=len(selected))

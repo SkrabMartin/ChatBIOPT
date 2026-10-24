@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router'
+import { useEffect } from 'react'
+import { Link, useLocation, useParams } from 'react-router'
 import { ErrorNotice } from '../../components/ErrorNotice'
 import { Card } from '../../components/ui'
 import { ApiError } from '../../lib/api/client'
@@ -50,6 +51,13 @@ export function DocumentPage() {
   const { documentId = '' } = useParams()
   const doc = useDocument(documentId)
   const versions = useSourceDocuments(doc.data?.source_id)
+  const { hash } = useLocation()
+  const targetChunk = hash.startsWith('#chunk-') ? hash.slice('#chunk-'.length) : null
+
+  // Citations link to a specific passage; bring it into view once the document has loaded.
+  useEffect(() => {
+    if (targetChunk && doc.data) document.getElementById(`chunk-${targetChunk}`)?.scrollIntoView?.({ block: 'center' })
+  }, [targetChunk, doc.data])
 
   if (doc.isPending) return <p className="text-sm text-slate-500">Loading document…</p>
   if (doc.error) {
@@ -101,7 +109,11 @@ export function DocumentPage() {
         </p>
         <ol className="space-y-3">
           {d.chunks.map((c) => (
-            <li key={c.id} id={`chunk-${c.id}`} className="rounded-md border border-slate-200 p-3">
+            <li
+              key={c.id}
+              id={`chunk-${c.id}`}
+              className={`rounded-md border p-3 ${c.id === targetChunk ? 'border-teal-500 bg-teal-50/50' : 'border-slate-200'}`}
+            >
               <p className="mb-1 font-mono text-xs text-slate-400">
                 #{c.ordinal} · {c.section}
                 {c.section_title ? ` · ${c.section_title}` : ''} · [{c.start_offset}, {c.end_offset}) · ~{c.token_estimate}{' '}

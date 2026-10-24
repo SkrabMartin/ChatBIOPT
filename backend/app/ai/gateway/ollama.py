@@ -4,7 +4,15 @@ from typing import Any
 
 import httpx
 
-from app.ai.gateway.base import Availability, GatewayError, GatewayEvent, GenerationRequest, StreamEnd, TextDelta
+from app.ai.gateway.base import (
+    Availability,
+    GatewayError,
+    GatewayEvent,
+    GenerationRequest,
+    StreamEnd,
+    TextDelta,
+    check_vectors,
+)
 
 
 class OllamaGateway:
@@ -27,6 +35,24 @@ class OllamaGateway:
                 digest = entry.get("digest")
                 return Availability(True, revision=f"sha256:{digest}" if isinstance(digest, str) else None)
         return Availability(False, reason=f"Model {self._model} is not pulled; run `ollama pull {self._model}`")
+
+    async def embed(self, texts: list[str], dimensions: int) -> list[list[float]]:
+        payload = {"model": self._model, "input": texts, "truncate": True}
+        try:
+            response = await self._http.post(f"{self._base_url}/api/embed", json=payload)
+        except httpx.TimeoutException as exc:
+            raise GatewayError("model_timeout", "Ollama did not return embeddings in time") from exc
+        except httpx.TransportError as exc:
+            raise GatewayError("model_unavailable", f"Ollama is not reachable at {self._base_url}") from exc
+        if response.status_code == 404:
+            raise GatewayError("model_unavailable", f"Model {self._model} is not available in Ollama")
+        if not response.is_success:
+            raise GatewayError("model_error", f"Ollama returned HTTP {response.status_code} for embeddings")
+        try:
+            vectors = response.json().get("embeddings")
+        except (ValueError, AttributeError) as exc:
+            raise GatewayError("model_error", "Ollama sent a malformed embedding response") from exc
+        return check_vectors(vectors, len(texts), dimensions)
 
     async def stream(self, request: GenerationRequest) -> AsyncIterator[GatewayEvent]:
         payload = {

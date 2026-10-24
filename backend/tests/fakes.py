@@ -6,7 +6,10 @@ FakeOllama speaks Ollama's `/api/tags` and streaming `/api/chat` protocol with s
 """
 
 import asyncio
+import hashlib
 import json
+import math
+import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Callable
@@ -91,9 +94,21 @@ def body(content: bytes, code: int = 200) -> Responder:
 OLLAMA_DIGEST = "a" * 64
 
 
+def fake_embedding(text: str, dimensions: int = 768) -> list[float]:
+    """Deterministic bag-of-words vector: texts sharing words are similar, so semantic tests are meaningful."""
+    text = text.removeprefix("search_query: ").removeprefix("search_document: ")
+    vector = [0.0] * dimensions
+    for word in re.findall(r"\w+", text.lower()):
+        vector[int(hashlib.sha256(word.encode()).hexdigest(), 16) % dimensions] += 1.0
+    norm = math.sqrt(sum(v * v for v in vector)) or 1.0
+    return [v / norm for v in vector]
+
+
 class FakeOllama:
     def __init__(self) -> None:
-        self.pulled: set[str] = {"qwen2.5:1.5b"}
+        self.pulled: set[str] = {"qwen2.5:1.5b", "nomic-embed-text"}
+        self.embed_requests: list[list[str]] = []
+        self.embed_status = 200
         self.reachable = True
         self.chunks: list[str] = ["Hello", " world", "."]
         # Raw NDJSON lines to emit instead of the normal stream (for malformed/error streams).
@@ -118,6 +133,14 @@ class FakeOllama:
             if self.http_status != 200:
                 return httpx.Response(self.http_status, json={"error": "boom"})
             return httpx.Response(200, content=self._stream(), headers={"Content-Type": "application/x-ndjson"})
+        if request.url.path == "/api/embed":
+            payload = json.loads(request.content)
+            if payload["model"] not in self.pulled:
+                return httpx.Response(404, json={"error": "model not found"})
+            if self.embed_status != 200:
+                return httpx.Response(self.embed_status, json={"error": "boom"})
+            self.embed_requests.append(payload["input"])
+            return httpx.Response(200, json={"embeddings": [fake_embedding(text) for text in payload["input"]]})
         return httpx.Response(404)
 
     async def _stream(self) -> AsyncIterator[bytes]:

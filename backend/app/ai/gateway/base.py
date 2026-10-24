@@ -58,3 +58,29 @@ class ModelGateway(Protocol):
     def stream(self, request: GenerationRequest) -> AsyncIterator[GatewayEvent]:
         """Yields TextDelta chunks then exactly one StreamEnd; raises GatewayError on any provider failure."""
         ...
+
+
+class EmbeddingGateway(Protocol):
+    async def availability(self) -> Availability: ...
+
+    async def embed(self, texts: list[str], dimensions: int) -> list[list[float]]:
+        """One vector per input, in order; raises GatewayError on provider failure or malformed output."""
+        ...
+
+
+def check_vectors(vectors: object, expected_count: int, dimensions: int) -> list[list[float]]:
+    """Validate provider output: right count, right dimension, finite numbers."""
+    if not isinstance(vectors, list) or len(vectors) != expected_count:
+        raise GatewayError("model_error", "Embedding response has the wrong number of vectors")
+    checked: list[list[float]] = []
+    for vector in vectors:
+        if not isinstance(vector, list) or len(vector) != dimensions:
+            raise GatewayError("model_error", f"Embedding dimension mismatch (expected {dimensions})")
+        try:
+            values = [float(v) for v in vector]
+        except (TypeError, ValueError) as exc:
+            raise GatewayError("model_error", "Embedding contains non-numeric values") from exc
+        if any(v != v or v in (float("inf"), float("-inf")) for v in values):
+            raise GatewayError("model_error", "Embedding contains non-finite values")
+        checked.append(values)
+    return checked

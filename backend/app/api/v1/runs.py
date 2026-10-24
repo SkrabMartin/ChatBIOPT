@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.gateway.router import ModelRouter
 from app.ai.runner import RunManager
 from app.db.session import get_session
-from app.schemas.runs import ModelList, ModelProfileRead, RunCreate, RunRead
+from app.schemas.runs import ModelList, ModelProfileRead, RunCreate, RunEvidenceRead, RunRead
 from app.schemas.workspace import MessageRead
 from app.services.runs import RunService
 
@@ -92,6 +92,12 @@ async def get_run(run_id: uuid.UUID, runs: Runs) -> RunRead:
 @router.post("/runs/{run_id}/cancel", response_model=RunRead, status_code=status.HTTP_202_ACCEPTED, tags=["runs"])
 async def cancel_run(run_id: uuid.UUID, runs: Runs) -> RunRead:
     return await runs.cancel(run_id)
+
+
+@router.get("/runs/{run_id}/evidence", response_model=list[RunEvidenceRead], tags=["runs"])
+async def run_evidence(run_id: uuid.UUID, runs: Runs) -> list[RunEvidenceRead]:
+    """Passages given to a grounded run as [E#] labels, with ranks and whether the answer cited them."""
+    return await runs.evidence(run_id)
 
 
 def _sse(event_type: str, data: dict[str, Any], event_id: int | None = None) -> str:

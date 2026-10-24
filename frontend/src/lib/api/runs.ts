@@ -24,6 +24,11 @@ export const runSchema = z.object({
   finish_reason: z.string().nullable(),
   error_code: z.string().nullable(),
   error_message: z.string().nullable(),
+  grounding: z.enum(['none', 'project']),
+  retrieval_version: z.string().nullable(),
+  embedding_space: z.string().nullable(),
+  answer_class: z.string().nullable(),
+  citation_stats: z.record(z.string(), z.number()).nullable(),
   created_at: z.string(),
   started_at: z.string().nullable(),
   finished_at: z.string().nullable(),
@@ -95,16 +100,51 @@ export function useRun(runId: string, enabled: boolean) {
   })
 }
 
+export type Grounding = 'auto' | 'project' | 'none'
+
 export function useStartRun(conversationId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (modelProfile: string | null) =>
+    mutationFn: ({ modelProfile, grounding }: { modelProfile: string | null; grounding: Grounding }) =>
       apiRequest('POST', `/chat/${conversationId}/runs`, runSchema, {
-        body: modelProfile ? { model_profile: modelProfile } : {},
+        body: { grounding, ...(modelProfile ? { model_profile: modelProfile } : {}) },
       }),
     onSuccess: (run) => {
       queryClient.setQueryData<Run[]>(runKeys.forConversation(conversationId), (old = []) => [run, ...old])
     },
+  })
+}
+
+export const runEvidenceSchema = z.object({
+  label: z.string(),
+  rank: z.number(),
+  cited: z.boolean(),
+  keyword_rank: z.number().nullable(),
+  semantic_rank: z.number().nullable(),
+  similarity: z.number().nullable(),
+  fused_score: z.number(),
+  chunk_id: z.string(),
+  text: z.string(),
+  section: z.string(),
+  section_title: z.string().nullable(),
+  start_offset: z.number(),
+  end_offset: z.number(),
+  document_id: z.string(),
+  document_kind: z.string(),
+  document_version: z.number(),
+  source_id: z.string(),
+  external_id: z.string(),
+  source_title: z.string(),
+  source_url: z.string(),
+})
+export type RunEvidence = z.infer<typeof runEvidenceSchema>
+
+export function useRunEvidence(runId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['runs', runId, 'evidence'],
+    queryFn: ({ signal }) => apiRequest('GET', `/runs/${runId}/evidence`, z.array(runEvidenceSchema), { signal }),
+    enabled,
+    staleTime: Infinity, // a finished run's evidence never changes
   })
 }
 
@@ -129,6 +169,10 @@ export function useRunFinished(conversationId: string) {
 
 const runEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('status'), data: z.object({ status: z.string() }).passthrough() }),
+  z.object({
+    type: z.literal('evidence'),
+    data: z.object({ items: z.array(z.object({ label: z.string() }).passthrough()), warnings: z.array(z.string()) }),
+  }),
   z.object({ type: z.literal('delta'), data: z.object({ text: z.string() }) }),
   z.object({
     type: z.literal('completed'),

@@ -60,3 +60,31 @@ profiles:
     price_input_per_mtok: 0
     price_output_per_mtok: 0
     notes: For a separate GPU server running `vllm serve Qwen/Qwen2.5-7B-Instruct --port 8001`.
+
+# Embedding spaces for retrieval (M06). Vectors are stored per space "<profile>@<revision>"; when the model or its
+# revision changes, chunks are re-embedded instead of mixing spaces.
+#   dimensions        must match the model's output (checked on every call)
+#   query_prefix /    task prefixes the model was trained with
+#   document_prefix
+#   min_similarity    cosine similarity below which a semantic-only hit is not treated as evidence; calibrated on
+#                     the dev retrieval set (evals/), revisit when changing the model
+default_embedding_profile: nomic-embed
+
+embedding_profiles:
+  nomic-embed:
+    label: nomic-embed-text v1.5 (Ollama)
+    provider: ollama
+    model: nomic-embed-text
+    deployment: local
+    data_policy: local
+    dimensions: 768
+    max_input_tokens: 2048
+    query_prefix: "search_query: "
+    document_prefix: "search_document: "
+    # Calibrated on evals/datasets/retrieval-dev-v0.1 (2026-10-24): off-topic/out-of-corpus questions reached
+    # 0.48-0.66 top similarity; 19 of 22 relevant passages scored >= 0.65 (the rest were exact-identifier
+    # queries that keyword matching covers). 0.70 trades some semantic-only recall for reliable abstention.
+    min_similarity: 0.70
+    batch_size: 32
+    license: Apache-2.0
+    notes: English-centric; Czech questions retrieve worse than English ones.

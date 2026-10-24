@@ -8,19 +8,28 @@ import {
   useCancelRun,
   useRunFinished,
   useStartRun,
+  type Grounding,
   type Run,
 } from '../../lib/api/runs'
 import type { Message } from '../../lib/api/workspace'
 import { MarkdownContent } from './MessageContent'
 
-type StreamState = { phase: 'streaming'; text: string } | { phase: 'ended' } | { phase: 'lost'; message: string }
+type StreamState =
+  | { phase: 'streaming'; text: string; stage: 'waiting' | 'retrieving' | 'generating'; passages: number | null }
+  | { phase: 'ended' }
+  | { phase: 'lost'; message: string }
+
+/** The grounded prompt asks for a first "STATUS: ..." line; it is metadata, not part of the visible answer. */
+function visibleText(text: string): string {
+  return text.replace(/^\s*\**\s*STATUS\s*:[^\n]*\n?/i, '')
+}
 
 /**
  * Follows one run's event stream. Any terminal event calls `onEnded`: the outcome (answer, failure, cancel)
  * is then read from the persisted run and messages, so it looks the same after a reload.
  */
 function useRunStream(runId: string, onEnded: () => void): StreamState {
-  const [state, setState] = useState<StreamState>({ phase: 'streaming', text: '' })
+  const [state, setState] = useState<StreamState>({ phase: 'streaming', text: '', stage: 'waiting', passages: null })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -28,8 +37,13 @@ function useRunStream(runId: string, onEnded: () => void): StreamState {
       runId,
       (event) => {
         if (event.type === 'delta') {
-          setState((s) => (s.phase === 'streaming' ? { phase: 'streaming', text: s.text + event.data.text } : s))
-        } else if (event.type !== 'status') {
+          setState((s) => (s.phase === 'streaming' ? { ...s, text: s.text + event.data.text } : s))
+        } else if (event.type === 'status') {
+          const stage = event.data.status === 'retrieving' ? 'retrieving' : 'generating'
+          setState((s) => (s.phase === 'streaming' ? { ...s, stage } : s))
+        } else if (event.type === 'evidence') {
+          setState((s) => (s.phase === 'streaming' ? { ...s, passages: event.data.items.length } : s))
+        } else {
           setState({ phase: 'ended' })
           onEnded()
         }
@@ -61,10 +75,12 @@ function Streaming({ run, onEnded }: { run: Run; onEnded: () => void }) {
       <div className="max-w-[75%] rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900">
         <p className="mb-0.5 flex items-center gap-2 text-xs text-slate-400">
           <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-teal-600" />
-          Generating with {run.model_profile}…
+          {state.stage === 'retrieving'
+            ? 'Searching the project evidence library…'
+            : `Generating with ${run.model_profile}${state.passages !== null ? ` from ${state.passages} passage(s)` : ''}…`}
         </p>
-        {state.text ? (
-          <MarkdownContent text={state.text} />
+        {visibleText(state.text) ? (
+          <MarkdownContent text={visibleText(state.text)} />
         ) : (
           <p className="text-sm text-slate-400">Waiting for the model…</p>
         )}
@@ -96,11 +112,13 @@ export function PendingAnswer({
   lastMessage,
   runs,
   modelProfile,
+  grounding,
 }: {
   conversationId: string
   lastMessage: Message | undefined
   runs: Run[]
   modelProfile: string | null
+  grounding: Grounding
 }) {
   const start = useStartRun(conversationId)
   const finished = useRunFinished(conversationId)
@@ -122,7 +140,7 @@ export function PendingAnswer({
       ) : null}
       {lastAttempt?.status === 'cancelled' ? <p className="text-xs text-slate-500">Generation stopped.</p> : null}
       {start.error ? <ErrorNotice error={start.error} title="Could not start generation" /> : null}
-      <Button variant="secondary" onClick={() => start.mutate(modelProfile)} disabled={start.isPending}>
+      <Button variant="secondary" onClick={() => start.mutate({ modelProfile, grounding })} disabled={start.isPending}>
         {lastAttempt ? 'Retry answer' : 'Generate answer'}
       </Button>
     </div>

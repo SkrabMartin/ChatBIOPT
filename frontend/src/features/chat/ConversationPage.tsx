@@ -15,9 +15,18 @@ import {
   type Conversation,
   type Message,
 } from '../../lib/api/workspace'
-import { ACTIVE_STATUSES, useConversationRuns, useModels, useRun, useStartRun } from '../../lib/api/runs'
+import {
+  ACTIVE_STATUSES,
+  useConversationRuns,
+  useModels,
+  useRun,
+  useRunEvidence,
+  useStartRun,
+  type Grounding,
+  type RunEvidence,
+} from '../../lib/api/runs'
 import { formatDateTime } from '../../lib/format'
-import { useModelPreference } from '../../lib/preferences'
+import { useGroundingPreference, useModelPreference } from '../../lib/preferences'
 import { MarkdownContent } from './MessageContent'
 import { PendingAnswer } from './PendingAnswer'
 
@@ -50,6 +59,22 @@ function RunDetails({ runId }: { runId: string }) {
           <dd>
             first token {run.data.time_to_first_token_ms ?? '?'} ms · total {run.data.latency_ms ?? '?'} ms
           </dd>
+          <dt>Grounding</dt>
+          <dd className="font-mono">
+            {run.data.grounding === 'project'
+              ? `${run.data.retrieval_version ?? '?'} · ${run.data.embedding_space ?? 'keyword only'}`
+              : 'none'}
+          </dd>
+          {run.data.citation_stats ? (
+            <>
+              <dt>Citations</dt>
+              <dd>
+                {run.data.citation_stats.valid_markers ?? 0} valid · {run.data.citation_stats.invalid_markers ?? 0}{' '}
+                removed (not in evidence) · {run.data.citation_stats.uncited_claims ?? 0} of{' '}
+                {run.data.citation_stats.claims ?? 0} sentences uncited
+              </dd>
+            </>
+          ) : null}
           <dt>Run</dt>
           <dd className="font-mono">{run.data.id}</dd>
         </dl>
@@ -57,6 +82,68 @@ function RunDetails({ runId }: { runId: string }) {
         <ErrorNotice error={run.error} title="Could not load run" />
       ) : null}
     </div>
+  )
+}
+
+const answerClassStyle: Record<string, { label: string; tone: string }> = {
+  supported: { label: 'Supported by cited passages', tone: 'bg-emerald-100 text-emerald-800' },
+  partially_supported: { label: 'Partially supported', tone: 'bg-amber-100 text-amber-800' },
+  conflicting: { label: 'Conflicting evidence', tone: 'bg-orange-100 text-orange-800' },
+  insufficient_evidence: { label: 'Insufficient evidence', tone: 'bg-slate-200 text-slate-700' },
+  unclassified: { label: 'Not grounded in citations', tone: 'bg-rose-100 text-rose-800' },
+}
+
+function EvidenceList({ evidence }: { evidence: RunEvidence[] }) {
+  const [open, setOpen] = useState(false)
+  const cited = evidence.filter((e) => e.cited).length
+  return (
+    <div className="mt-1">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-teal-700 hover:underline">
+        {open ? 'Hide passages' : `Passages (${cited} cited of ${evidence.length} retrieved)`}
+      </button>
+      {open ? (
+        <ol className="mt-1 space-y-2">
+          {evidence.map((e) => (
+            <li key={e.label} className={`rounded border p-2 text-xs ${e.cited ? 'border-teal-300' : 'border-slate-200'}`}>
+              <p className="mb-0.5 text-slate-500">
+                <span className="font-mono text-teal-800">{e.label}</span> ·{' '}
+                <Link to={`/documents/${e.document_id}#chunk-${e.chunk_id}`} className="hover:underline">
+                  {e.source_title}
+                </Link>{' '}
+                · PMID {e.external_id} · {e.section_title ?? e.section}
+                {e.cited ? ' · cited' : ''}
+              </p>
+              {/* Publication text is untrusted: plain text only. */}
+              <p className="whitespace-pre-wrap text-slate-700">{e.text}</p>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </div>
+  )
+}
+
+function AssistantContent({ message }: { message: Message }) {
+  const run = useRun(message.run_id ?? '', message.run_id !== null)
+  const grounded = run.data?.grounding === 'project'
+  const evidence = useRunEvidence(message.run_id ?? '', grounded)
+  const answerClass = run.data?.answer_class ? answerClassStyle[run.data.answer_class] : undefined
+  return (
+    <>
+      {answerClass ? (
+        <span className={`mb-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${answerClass.tone}`}>
+          {answerClass.label}
+        </span>
+      ) : null}
+      <MarkdownContent text={message.content} evidence={grounded ? (evidence.data ?? []) : undefined} />
+      <p className="mt-2 border-t border-slate-100 pt-1 text-xs text-amber-700">
+        {grounded
+          ? 'Model output grounded in project passages · citations show what was pointed at, not proof · review claims'
+          : 'Model output · not grounded in retrieved sources · verify before use'}
+      </p>
+      {grounded && evidence.data && evidence.data.length > 0 ? <EvidenceList evidence={evidence.data} /> : null}
+      {message.run_id ? <RunDetails runId={message.run_id} /> : null}
+    </>
   )
 }
 
@@ -74,13 +161,7 @@ function MessageItem({ message }: { message: Message }) {
           // User text is shown verbatim, never interpreted as HTML or Markdown.
           <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
         ) : (
-          <>
-            <MarkdownContent text={message.content} />
-            <p className="mt-2 border-t border-slate-100 pt-1 text-xs text-amber-700">
-              Model output · not grounded in retrieved sources · verify before use
-            </p>
-            {message.run_id ? <RunDetails runId={message.run_id} /> : null}
-          </>
+          <AssistantContent message={message} />
         )}
       </div>
     </li>
@@ -110,9 +191,17 @@ function ModelSelect({ value, onChange }: { value: string | null; onChange: (pro
   )
 }
 
+const groundingLabel: Record<Grounding, string> = {
+  auto: 'Auto (project library when available)',
+  project: 'Project evidence only',
+  none: 'Off (model knowledge only)',
+}
+const GROUNDING_OPTIONS: readonly Grounding[] = ['auto', 'project', 'none']
+
 function Composer({ conversationId, busy }: { conversationId: string; busy: boolean }) {
   const [content, setContent] = useState('')
   const [modelProfile, setModelProfile] = useModelPreference()
+  const [grounding, setGrounding] = useGroundingPreference()
   const post = usePostMessage(conversationId)
   const start = useStartRun(conversationId)
   const canSend = content.trim().length > 0 && !post.isPending && !busy
@@ -122,7 +211,7 @@ function Composer({ conversationId, busy }: { conversationId: string; busy: bool
     post.mutate(content, {
       onSuccess: () => {
         setContent('')
-        start.mutate(modelProfile)
+        start.mutate({ modelProfile, grounding })
       },
     })
   }
@@ -156,9 +245,22 @@ function Composer({ conversationId, busy }: { conversationId: string; busy: bool
       {post.error ? <ErrorNotice error={post.error} title="Message not saved" /> : null}
       {start.error ? <ErrorNotice error={start.error} title="Could not start generation" /> : null}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ModelSelect value={modelProfile} onChange={setModelProfile} />
-          <p className="text-xs text-slate-400">No literature retrieval yet: answers come from the model alone.</p>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+            Evidence
+            <select
+              value={grounding}
+              onChange={(e) => setGrounding(GROUNDING_OPTIONS.find((g) => g === e.target.value) ?? 'auto')}
+              className="rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-700"
+            >
+              {GROUNDING_OPTIONS.map((g) => (
+                <option key={g} value={g}>
+                  {groundingLabel[g]}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <Button type="submit" disabled={!canSend}>
           {post.isPending ? 'Sending…' : busy ? 'Generating…' : 'Send'}
@@ -249,6 +351,7 @@ export function ConversationPage() {
   const messages = useMessages(conversationId)
   const runs = useConversationRuns(conversationId)
   const [modelProfile] = useModelPreference()
+  const [grounding] = useGroundingPreference()
   const bottomRef = useRef<HTMLDivElement>(null)
   const messageCount = messages.data?.length ?? 0
   const latestRun = runs.data?.[0]
@@ -296,6 +399,7 @@ export function ConversationPage() {
               lastMessage={messages.data.at(-1)}
               runs={runs.data}
               modelProfile={modelProfile}
+              grounding={grounding}
             />
           </div>
         ) : null}

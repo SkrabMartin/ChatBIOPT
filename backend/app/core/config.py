@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # Max silence between streamed chunks (covers model load time on first use).
     model_read_timeout_s: float = Field(default=120.0, gt=0, le=900)
     run_max_duration_s: float = Field(default=300.0, gt=0, le=3600)
+    # Grounded answers (M06): passages placed in the model's context at most.
+    rag_top_k: int = Field(default=8, ge=1, le=30)
 
     # Evidence ingestion (M05).
     europepmc_base_url: str = "https://www.ebi.ac.uk/europepmc/webservices/rest"

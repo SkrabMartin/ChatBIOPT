@@ -42,24 +42,69 @@ class ModelProfile(BaseModel):
         ) / 1e6
 
 
+class EmbeddingProfile(BaseModel):
+    """An embedding space. Vectors from different profiles are never compared with each other."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: str
+    label: str
+    provider: Provider
+    model: str = Field(min_length=1)
+    base_url: str | None = None
+    api_key_env: str | None = None
+    deployment: Literal["local", "self_hosted", "cloud"]
+    data_policy: Literal["local", "external"]
+    dimensions: int = Field(gt=0, le=16000)
+    max_input_tokens: int = Field(gt=0)
+    # Task prefixes some models require (e.g. nomic-embed-text: "search_query: " / "search_document: ").
+    query_prefix: str = ""
+    document_prefix: str = ""
+    # Cosine similarity below which a semantic-only match does not count as evidence (calibrated per model).
+    min_similarity: float = Field(ge=-1, le=1)
+    batch_size: int = Field(default=32, gt=0, le=512)
+    license: str
+    notes: str | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        if self.provider == "openai_compatible" and not self.base_url:
+            raise ValueError(f"{self.id}: openai_compatible profiles need base_url")
+        if self.deployment == "cloud" and self.data_policy != "external":
+            raise ValueError(f"{self.id}: cloud deployments send data off-site and must declare data_policy: external")
+        return self
+
+
+def _with_ids(section: object) -> object:
+    if isinstance(section, dict):
+        return {k: {**v, "id": k} if isinstance(v, dict) else v for k, v in section.items()}
+    return section
+
+
 class ModelRegistry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     default_profile: str
     profiles: dict[str, ModelProfile]
+    default_embedding_profile: str | None = None
+    embedding_profiles: dict[str, EmbeddingProfile] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
     def _inject_ids(cls, data: object) -> object:
-        if isinstance(data, dict) and isinstance(data.get("profiles"), dict):
-            profiles = {k: {**v, "id": k} if isinstance(v, dict) else v for k, v in data["profiles"].items()}
-            data = {**data, "profiles": profiles}
+        if isinstance(data, dict):
+            data = {**data}
+            for key in ("profiles", "embedding_profiles"):
+                if key in data:
+                    data[key] = _with_ids(data[key])
         return data
 
     @model_validator(mode="after")
     def _default_exists(self) -> Self:
         if self.default_profile not in self.profiles:
             raise ValueError(f"default_profile {self.default_profile!r} is not defined")
+        if self.default_embedding_profile is not None and self.default_embedding_profile not in self.embedding_profiles:
+            raise ValueError(f"default_embedding_profile {self.default_embedding_profile!r} is not defined")
         return self
 
 

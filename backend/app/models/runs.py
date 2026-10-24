@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -55,6 +56,13 @@ class Run(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Grounding (M06): "none" answers from the model alone; "project" retrieves from the project's evidence library.
+    grounding: Mapped[str] = mapped_column(String(16), nullable=False, server_default="none")
+    retrieval_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    embedding_space: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    # supported | partially_supported | conflicting | insufficient_evidence | tool_error | unclassified
+    answer_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    citation_stats: Mapped[dict[str, int] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

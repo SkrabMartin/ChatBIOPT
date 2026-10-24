@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -14,7 +15,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -70,6 +71,7 @@ class Chunk(Base):
     __table_args__ = (
         UniqueConstraint("document_id", "chunker_version", "ordinal"),
         CheckConstraint("end_offset > start_offset", name="offsets"),
+        Index("ix_chunks_search_vector", "search_vector", postgresql_using="gin"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -82,6 +84,13 @@ class Chunk(Base):
     end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     token_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Lexical index (English stemming). Exact identifiers such as "R175H" or "rs121913343" stay single tokens.
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', coalesce(section_title, '') || ' ' || text)", persisted=True),
+        nullable=False,
+        deferred=True,  # only queried in SQL; never needed on loaded objects
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

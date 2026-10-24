@@ -37,6 +37,11 @@ function run(overrides: Partial<Run> = {}): Run {
     finish_reason: null,
     error_code: null,
     error_message: null,
+    grounding: 'none',
+    retrieval_version: null,
+    embedding_space: null,
+    answer_class: null,
+    citation_stats: null,
     created_at: now,
     started_at: null,
     finished_at: null,
@@ -131,7 +136,7 @@ describe('ConversationPage', () => {
     expect(screen.getByText(/not grounded in retrieved sources/)).toBeInTheDocument()
     expect(composer).toHaveValue('')
     const runPost = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/runs') && init?.method === 'POST')
-    expect(JSON.parse(String(runPost?.[1]?.body))).toEqual({})
+    expect(JSON.parse(String(runPost?.[1]?.body))).toEqual({ grounding: 'auto' })
   })
 
   it('shows a persisted failure with its reason and lets the user retry', async () => {
@@ -169,6 +174,82 @@ describe('ConversationPage', () => {
       'title',
       'Unverified link from model output: https://evil.example/x',
     )
+  })
+
+  it('links validated citations to stored passages and labels the answer class', async () => {
+    const grounded = run({ status: 'succeeded', grounding: 'project', answer_class: 'partially_supported' })
+    const evidence = [
+      {
+        label: 'E1',
+        rank: 1,
+        cited: true,
+        keyword_rank: 1,
+        semantic_rank: 2,
+        similarity: 0.71,
+        fused_score: 0.03,
+        chunk_id: 'ch-1',
+        text: 'Two mutations, R110C and R175H, were identified, each in distinct clones.',
+        section: 'results',
+        section_title: 'Results',
+        start_offset: 0,
+        end_offset: 70,
+        document_id: 'doc-1',
+        document_kind: 'fulltext',
+        document_version: 1,
+        source_id: 's-1',
+        external_id: '29416795',
+        source_title: 'Treatment-associated TP53 mutations',
+        source_url: 'https://pubmed.ncbi.nlm.nih.gov/29416795/',
+      },
+    ]
+    mockApi({
+      ...baseRoutes({
+        messages: [message(1, 'Q'), message(2, 'R175H and R110C were in distinct clones [E1]. Unrelated [E7].', 'assistant', 'r-1')],
+        runs: [grounded],
+      }),
+      'GET /api/v1/runs/r-1': () => jsonResponse(grounded),
+      'GET /api/v1/runs/r-1/evidence': () => jsonResponse(evidence),
+    })
+    const user = userEvent.setup()
+
+    renderPage()
+
+    const chip = await screen.findByRole('link', { name: 'E1' })
+    expect(chip).toHaveAttribute('href', '/documents/doc-1#chunk-ch-1')
+    expect(screen.getByText(/Unrelated \[E7\]/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'E7' })).not.toBeInTheDocument()
+    expect(screen.getByText('Partially supported')).toBeInTheDocument()
+    expect(screen.getByText(/grounded in project passages/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Passages \(1 cited of 1 retrieved\)/ }))
+    expect(screen.getByText(evidence[0].text)).toBeInTheDocument()
+  })
+
+  it('hides the status line while streaming a grounded answer', async () => {
+    const state = { messages: [message(1, 'Q')], runs: [run({ status: 'running', grounding: 'project' })] }
+    mockApi({
+      ...baseRoutes(state),
+      'GET /api/v1/runs/r-1/events': () =>
+        new Response(
+          new ReadableStream({
+            start: (c) =>
+              c.enqueue(
+                new TextEncoder().encode(
+                  'id: 1\nevent: status\ndata: {"status":"retrieving"}\n\n' +
+                    'id: 2\nevent: evidence\ndata: {"items":[{"label":"E1"},{"label":"E2"}],"warnings":[]}\n\n' +
+                    'id: 3\nevent: status\ndata: {"status":"running"}\n\n' +
+                    'id: 4\nevent: delta\ndata: {"text":"STATUS: supported\\nThe answer"}\n\n',
+                ),
+              ),
+          }),
+        ),
+    })
+
+    renderPage()
+
+    expect(await screen.findByText(/from 2 passage\(s\)/)).toBeInTheDocument()
+    expect(await screen.findByText('The answer')).toBeInTheDocument()
+    expect(screen.queryByText(/STATUS/)).not.toBeInTheDocument()
   })
 
   it('disables sending while an answer is being generated and can stop it', async () => {

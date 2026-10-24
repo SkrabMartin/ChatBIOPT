@@ -14,15 +14,28 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.ai.context import build_context
+from app.ai.context import BuiltContext, ContextTooLongError, build_context
 from app.ai.gateway.base import GatewayError, GenerationRequest, StreamEnd, TextDelta
 from app.ai.gateway.router import ModelRouter
+from app.ai.grounding import (
+    EXTRACTION_VERSION,
+    ParsedAnswer,
+    insufficient_evidence_message,
+    label,
+    parse_answer,
+    render_evidence,
+)
+from app.ai.prompts.research_assistant import GROUNDED_SYSTEM_PROMPT
+from app.ai.registry import ModelProfile
 from app.core.errors import AppError
 from app.core.logging import trace_id_var
-from app.models import Message, Run
+from app.models import Claim, ClaimEvidence, Conversation, Message, ProjectSource, Run, RunEvidence
+from app.retrieval.embeddings import EmbeddingSpace, resolve_space
+from app.retrieval.search import Hit, RetrievalResult, retrieve
 from app.schemas.runs import RunRead
 from app.schemas.workspace import MessageRead
 from app.services.conversations import append_message
@@ -30,6 +43,23 @@ from app.services.conversations import append_message
 logger = logging.getLogger(__name__)
 
 TERMINAL_EVENTS = frozenset({"completed", "failed", "cancelled"})
+
+
+class RetrievalFailedError(AppError):
+    status_code = 502
+    code = "tool_error"
+
+
+def _evidence_json(index: int, hit: Hit) -> dict[str, Any]:
+    return {
+        "label": label(index),
+        "chunk_id": str(hit.chunk_id),
+        "document_id": str(hit.document_id),
+        "source_title": hit.source_title,
+        "external_id": hit.external_id,
+        "section": hit.section,
+        "section_title": hit.section_title,
+    }
 
 
 @dataclass(frozen=True)
@@ -80,11 +110,13 @@ class RunManager:
         router: ModelRouter,
         *,
         max_duration_s: float,
+        rag_top_k: int = 8,
         retain_channel_s: float = 120,
     ) -> None:
         self._session_factory = session_factory
         self._router = router
         self._max_duration_s = max_duration_s
+        self._rag_top_k = rag_top_k
         self._retain_channel_s = retain_channel_s
         self._channels: dict[uuid.UUID, RunChannel] = {}
         self._tasks: dict[uuid.UUID, asyncio.Task[None]] = {}
@@ -142,25 +174,63 @@ class RunManager:
                 return
             profile = self._router.profile(run.model_profile)
             gateway = self._router.gateway(profile)
+            history = list(
+                (
+                    await session.scalars(
+                        select(Message)
+                        .where(Message.conversation_id == run.conversation_id)
+                        .where(Message.sequence <= run.context_until_sequence)
+                        .order_by(Message.sequence)
+                    )
+                ).all()
+            )
+            conversation_id = run.conversation_id
+            grounded = run.grounding == "project"
+            evidence: list[Hit] = []
+            if grounded:
+                project_id = await session.scalar(
+                    select(Conversation.project_id).where(Conversation.id == conversation_id)
+                )
+                assert project_id is not None
+                await channel.publish("status", {"status": "retrieving"})
+                retrieval, min_similarity = await self._retrieve(session, project_id, history[-1].content)
+                evidence = [h for h in retrieval.hits if h.is_evidence(min_similarity)][: self._rag_top_k]
+                run.retrieval_version = retrieval.version
+                run.embedding_space = retrieval.embedding_space
+                await channel.publish(
+                    "evidence",
+                    {"items": [_evidence_json(i, h) for i, h in enumerate(evidence)], "warnings": retrieval.warnings},
+                )
+                if not evidence:
+                    # Abstain without calling the model: there is nothing to ground an answer in.
+                    sources = await session.scalar(
+                        select(func.count()).select_from(ProjectSource).where(ProjectSource.project_id == project_id)
+                    )
+                    await session.commit()
+                    await self._complete(
+                        run_id,
+                        conversation_id,
+                        channel,
+                        started,
+                        insufficient_evidence_message(sources or 0, retrieval.warnings),
+                        answer_class="insufficient_evidence",
+                        citation_stats={"evidence": 0, "claims": 0},
+                    )
+                    return
+
             availability = await gateway.availability()
             if not availability.available:
                 raise GatewayError("model_unavailable", availability.reason or "Model is not available")
-            history = (
-                await session.scalars(
-                    select(Message)
-                    .where(Message.conversation_id == run.conversation_id)
-                    .where(Message.sequence <= run.context_until_sequence)
-                    .order_by(Message.sequence)
+            if grounded:
+                context, evidence = self._grounded_context(history, evidence, profile)
+            else:
+                context = build_context(
+                    history, context_window=profile.context_window, max_output_tokens=profile.max_output_tokens
                 )
-            ).all()
-            context = build_context(
-                list(history), context_window=profile.context_window, max_output_tokens=profile.max_output_tokens
-            )
             run.status = "running"
             run.started_at = datetime.now(UTC)
             run.model_revision = availability.revision
             run.context_message_count = context.history_message_count
-            conversation_id = run.conversation_id
             await session.commit()
         await channel.publish("status", {"status": "running", "model_revision": availability.revision})
 
@@ -186,41 +256,155 @@ class RunManager:
             # Never store or show an empty/partial answer as if it were a response.
             raise GatewayError("model_error", "The model returned an empty response")
 
-        async with self._session_factory() as session:
-            message = await append_message(session, conversation_id, role="assistant", content=content, run_id=run_id)
-            await session.execute(
-                update(Run)
-                .where(Run.id == run_id)
-                .values(
-                    status="succeeded",
-                    input_tokens=end.input_tokens,
-                    output_tokens=end.output_tokens,
-                    estimated_cost_usd=profile.estimate_cost_usd(end.input_tokens, end.output_tokens),
-                    time_to_first_token_ms=first_token_ms,
-                    latency_ms=_ms_since(started),
-                    finish_reason=end.finish_reason,
-                    finished_at=datetime.now(UTC),
-                )
+        usage: dict[str, Any] = {
+            "input_tokens": end.input_tokens,
+            "output_tokens": end.output_tokens,
+            "estimated_cost_usd": profile.estimate_cost_usd(end.input_tokens, end.output_tokens),
+            "time_to_first_token_ms": first_token_ms,
+            "finish_reason": end.finish_reason,
+        }
+        if not grounded:
+            await self._complete(run_id, conversation_id, channel, started, content, **usage)
+        else:
+            labels = {label(i): hit for i, hit in enumerate(evidence)}
+            parsed = parse_answer(content, set(labels))
+            await self._complete(
+                run_id,
+                conversation_id,
+                channel,
+                started,
+                parsed.content or "The model reported insufficient evidence without further explanation.",
+                evidence=labels,
+                parsed=parsed,
+                answer_class=parsed.answer_class,
+                citation_stats=parsed.stats,
+                **usage,
             )
-            await session.commit()
-            message_json = MessageRead.model_validate(message).model_dump(mode="json")
-        run_json = await self._run_json(run_id)
         logger.info(
             "run succeeded",
             extra={
                 "run_id": str(run_id),
                 "model_profile": profile.id,
+                "grounded": grounded,
                 "input_tokens": end.input_tokens,
                 "output_tokens": end.output_tokens,
                 "ttft_ms": first_token_ms,
                 "latency_ms": _ms_since(started),
             },
         )
-        await channel.publish("completed", {"run": run_json, "message": message_json})
+
+    async def _retrieve(
+        self, session: AsyncSession, project_id: uuid.UUID, question: str
+    ) -> tuple[RetrievalResult, float | None]:
+        space: EmbeddingSpace | None = None
+        space_error: str | None = None
+        try:
+            space = await resolve_space(self._router)
+        except (GatewayError, AppError) as exc:
+            space_error = str(exc)
+        try:
+            result = await retrieve(
+                session,
+                project_id,
+                question,
+                mode="hybrid",
+                top_k=self._rag_top_k * 3,
+                space=space,
+                space_error=space_error,
+            )
+        except (SQLAlchemyError, GatewayError) as exc:
+            # A retrieval failure is a tool error, never "no evidence".
+            raise RetrievalFailedError(f"Evidence retrieval failed: {exc}") from exc
+        return result, space.profile.min_similarity if space else None
+
+    def _grounded_context(
+        self, history: list[Message], evidence: list[Hit], profile: ModelProfile
+    ) -> tuple[BuiltContext, list[Hit]]:
+        """Fit as much top-ranked evidence as the window allows; history fills what is left."""
+        question = history[-1].content
+        while evidence:
+            latest = f"{question}\n\n{render_evidence(evidence)}"
+            try:
+                context = build_context(
+                    history,
+                    context_window=profile.context_window,
+                    max_output_tokens=profile.max_output_tokens,
+                    system_prompt=GROUNDED_SYSTEM_PROMPT,
+                    latest_user_content=latest,
+                )
+                return context, evidence
+            except ContextTooLongError:
+                evidence = evidence[:-1]
+        raise ContextTooLongError("The question and its evidence do not fit this model's context window")
+
+    async def _complete(
+        self,
+        run_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        channel: RunChannel,
+        started: float,
+        content: str,
+        *,
+        evidence: dict[str, Hit] | None = None,
+        parsed: ParsedAnswer | None = None,
+        **run_values: Any,
+    ) -> None:
+        async with self._session_factory() as session:
+            message = await append_message(session, conversation_id, role="assistant", content=content, run_id=run_id)
+            if evidence:
+                cited = parsed.cited_labels if parsed else set()
+                session.add_all(
+                    RunEvidence(
+                        run_id=run_id,
+                        label=lab,
+                        rank=index + 1,
+                        chunk_id=hit.chunk_id,
+                        keyword_rank=hit.keyword_rank,
+                        semantic_rank=hit.semantic_rank,
+                        similarity=hit.similarity,
+                        fused_score=hit.fused_score,
+                        cited=lab in cited,
+                    )
+                    for index, (lab, hit) in enumerate(evidence.items())
+                )
+            # An abstention is not a set of scientific claims; keep it off the evidence board.
+            if parsed and evidence and parsed.answer_class != "insufficient_evidence":
+                project_id = await session.scalar(
+                    select(Conversation.project_id).where(Conversation.id == conversation_id)
+                )
+                assert project_id is not None
+                for draft in parsed.claims:
+                    claim = Claim(
+                        project_id=project_id,
+                        run_id=run_id,
+                        message_id=message.id,
+                        ordinal=draft.ordinal,
+                        claim_text=draft.text,
+                        support_state="cited" if draft.labels else "uncited",
+                        extraction_version=EXTRACTION_VERSION,
+                    )
+                    session.add(claim)
+                    await session.flush()
+                    session.add_all(
+                        ClaimEvidence(claim_id=claim.id, chunk_id=evidence[lab].chunk_id, label=lab)
+                        for lab in draft.labels
+                    )
+            await session.execute(
+                update(Run)
+                .where(Run.id == run_id)
+                .values(status="succeeded", latency_ms=_ms_since(started), finished_at=datetime.now(UTC), **run_values)
+            )
+            await session.commit()
+            message_json = MessageRead.model_validate(message).model_dump(mode="json")
+        await channel.publish("completed", {"run": await self._run_json(run_id), "message": message_json})
 
     async def _fail(self, run_id: uuid.UUID, channel: RunChannel, started: float, code: str, message: str) -> None:
         logger.warning("run failed", extra={"run_id": str(run_id), "error_code": code})
-        await self._finish(run_id, started, status="failed", error_code=code, error_message=message)
+        # A broken tool is reported as such; it must never look like "no evidence".
+        answer_class = "tool_error" if code == "tool_error" else None
+        await self._finish(
+            run_id, started, status="failed", error_code=code, error_message=message, answer_class=answer_class
+        )
         await channel.publish("failed", {"error_code": code, "message": message, "run": await self._run_json(run_id)})
 
     async def _finish(self, run_id: uuid.UUID, started: float, **values: Any) -> None:

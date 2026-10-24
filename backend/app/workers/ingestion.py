@@ -23,6 +23,8 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import __version__
+from app.ai.gateway.router import ModelRouter
+from app.ai.registry import load_registry
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError, UpstreamError
 from app.core.logging import configure_logging, trace_id_var
@@ -177,12 +179,20 @@ def build_worker(
     settings: Settings,
     session_factory: async_sessionmaker[AsyncSession],
     http: httpx.AsyncClient,
+    model_http: httpx.AsyncClient | None = None,
 ) -> IngestionWorker:
+    models = ModelRouter(
+        load_registry(settings.model_registry_path),
+        model_http or http,
+        ollama_base_url=settings.ollama_base_url,
+        allow_external=settings.allow_external_models,
+    )
     pipeline = IngestionPipeline(
         PubMedClient.from_settings(http, settings),
         EuropePMCClient.from_settings(http, settings),
         FilesystemObjectStore(settings.object_store_path),
         settings.allowed_fulltext_licenses,
+        models,
     )
     return IngestionWorker(session_factory, pipeline, settings)
 
@@ -206,7 +216,14 @@ async def main() -> None:
                 },
             )
         )
-        worker = build_worker(settings, async_sessionmaker(engine, expire_on_commit=False), http)
+        model_http = await stack.enter_async_context(
+            httpx.AsyncClient(
+                timeout=httpx.Timeout(
+                    connect=settings.model_connect_timeout_s, read=settings.model_read_timeout_s, write=30, pool=5
+                )
+            )
+        )
+        worker = build_worker(settings, async_sessionmaker(engine, expire_on_commit=False), http, model_http)
         logger.info("ingestion worker started", extra={"version": __version__})
         await worker.run_forever(stop, Heartbeat(settings))
         logger.info("ingestion worker stopped")

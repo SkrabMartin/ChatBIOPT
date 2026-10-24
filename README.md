@@ -2,7 +2,7 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M05 Evidence Ingestion.** Projects and conversations are persisted, PubMed lookup returns provenance-tracked records, conversations get streamed answers from a local model with every answer traced to a recorded run, and publications can be ingested into a project's evidence library. Ingestion stores versioned abstracts, license-gated open-access full texts and addressable chunks. Chat answers are **not yet grounded in this evidence**; retrieval and citations arrive in M06 (see the [roadmap](#roadmap)).
+> **Status: M06 Retrieval / RAG.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. Retrieval quality is measured on a small hand-labelled development set (see [Evaluation](#evaluation)).
 >
 > **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
@@ -49,6 +49,7 @@ docker compose -f compose.yaml -f compose.ai.yaml up -d --build --wait          
 docker compose -f compose.yaml -f compose.ai.yaml -f compose.gpu.yaml up -d --build --wait     # NVIDIA GPU
 docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull qwen2.5:1.5b         # default profile
 docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull qwen2.5:7b           # optional, ~6 GB (V)RAM
+docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull nomic-embed-text     # embeddings for retrieval
 ```
 
 An Ollama already running on the host works too: plain `compose.yaml` points the backend at `host.docker.internal:11434`. **Settings** in the UI shows which models are pulled and lets each browser pick one.
@@ -98,6 +99,7 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `INGESTION_MAX_ATTEMPTS` | `3` | Attempts per ingestion job for transient provider failures |
 | `INGESTION_RETRY_DELAY_S` | `30` | Base delay before a retry (multiplied by the attempt number) |
 | `INGESTION_LEASE_S` | `300` | Worker lease; a job whose worker died becomes claimable again after this |
+| `RAG_TOP_K` | `8` | Most passages placed in a grounded answer's context (fewer if the context window is too small) |
 
 ## Checks
 
@@ -126,9 +128,9 @@ cd backend && RUN_LIVE_TESTS=1 pytest -m live
 ```json
 {
   "status": "ok",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0005", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0006", "latency_ms": 1.2 }
 }
 ```
 
@@ -247,6 +249,74 @@ flowchart LR
   - Chunks end on a sentence boundary, without splitting at abbreviations such as "et al." or "Fig.".
   - Each chunk targets about 350 tokens (hard limit 600), and one sentence overlaps into the next chunk.
 - **Shared, not duplicated.** Sources and documents are public data shared across projects, and a project only links to them. Two projects ingesting the same PMID produce one set of documents.
+- **Embeddings.** The last ingestion step embeds the chunks of each source's latest versions into the current embedding space, named `<profile>@<model digest>` (for example `nomic-embed@sha256:0a10…`). A different model or model revision is a new space, and chunks are re-embedded into it rather than mixed with old vectors. If the embedding model is unavailable, ingestion still succeeds: the step is logged as skipped, keyword retrieval keeps working, and a later refresh fills in the missing vectors.
+
+### Retrieval and grounded answers
+
+| Method & route | Purpose |
+|---|---|
+| `POST /api/v1/retrieval/query` | `{project_id, query, mode: keyword\|semantic\|hybrid, top_k}` → ranked passages with each retriever's rank, keyword term coverage, similarity and whether the hit counts as evidence |
+| `POST /api/v1/chat/{id}/runs` | now also accepts `grounding: auto\|project\|none` (`auto` grounds when the project library has passages) |
+| `GET /api/v1/runs/{id}/evidence` | Passages given to a grounded run as `[E#]` labels, with ranks and whether the answer cited them |
+| `GET /api/v1/projects/{id}/claims?review_status=&format=json\|csv` | Evidence board: answer sentences with their cited passages; CSV export |
+| `PATCH /api/v1/claims/{id}` | `{review_status: requires_review\|verified\|disputed\|rejected, review_note?}` |
+
+```mermaid
+flowchart LR
+    Q[question] --> K[keyword: PostgreSQL FTS] & S[semantic: pgvector cosine]
+    K & S --> F[RRF fusion] --> G{evidence?}
+    G -->|none| X[abstain: insufficient evidence, no model call]
+    G -->|E1..En| P[grounded prompt] --> M[model] --> V[validate citations, extract claims]
+    V --> B[(evidence board)]
+```
+
+- **Scope.** Retrieval only searches the latest document version of each source linked to the project. When a full text exists it is used instead of the abstract, since the full text already contains the abstract. Another project's library is never searched, through either index.
+- **Hybrid retrieval (`hybrid-rrf-v1`).** Two retrievers each return up to 50 candidates and are combined with Reciprocal Rank Fusion (k = 60). Raw keyword and cosine scores are never compared directly.
+  - **Keyword:** PostgreSQL full-text search with English stemming. Exact identifiers such as `R175H` or `rs…` stay whole tokens.
+  - **Semantic:** cosine similarity over `nomic-embed-text` vectors, with its `search_query:` / `search_document:` prefixes.
+  - **Fallback:** if the embedding model is unavailable, hybrid falls back to keyword search and says so in `warnings`.
+- **What counts as evidence.** A passage counts in either of two cases:
+  - its keyword match covers at least half of the question's terms (stop words removed), so a single shared word like "role" is not enough;
+  - its semantic similarity is at least the profile's `min_similarity` (0.70 for nomic, calibrated on the dev set: off-topic questions scored 0.48–0.66).
+
+  If nothing counts, the run abstains with `answer_class: insufficient_evidence` and the model is not called.
+- **Grounded prompt (`grounded-answer-v1`).** Up to `RAG_TOP_K` passages are sent as labelled `[E1]…[En]` blocks inside `<evidence>`, together with any conversation history that still fits the context window. Passage text cannot close that block, and the prompt treats it as untrusted data, never as instructions. The model must start with `STATUS: supported | partially_supported | conflicting | insufficient_evidence` and cite labels after each sentence.
+- **Citation validation.** The server keeps only labels that were actually given to this run. Invented labels are removed and counted in `citation_stats.invalid_markers`. The answer is then split into sentence-level claims, each linked to the passages it cites. A model abstention creates no claims.
+- **Answer classes.** A run gets one of these classes:
+  - `supported` / `conflicting` / `insufficient_evidence`: as the model declared.
+  - `partially_supported`: some sentences cite nothing.
+  - `unclassified`: no valid citation at all.
+  - `tool_error`: retrieval itself failed. This is a failed run with error code `tool_error`, never reported as "no evidence".
+- **What a citation means.** A valid citation only shows which passage the model pointed at, not that the passage supports the sentence. Every claim starts as `requires_review` on the **evidence board**, where you can verify, dispute or reject it.
+- **Reproducibility.** Each run also records `grounding`, `retrieval_version`, `embedding_space`, `answer_class`, `citation_stats`, the ranked passages it was given (`run_evidence`) and its claims. The config hash covers the grounded prompt, the chunker and the embedding profile.
+
+## Evaluation
+
+```bash
+cd backend
+python -m app.evals.retrieval --project <project-id> \
+  --dataset ../evals/datasets/retrieval-dev-v0.1.jsonl --out ../evals/reports/retrieval-dev-v0.1.json
+```
+
+The runner compares keyword, semantic and hybrid retrieval on the same queries (top 10). It reports recall@5, recall@10, MRR@10 and nDCG@10 with graded relevance, 95% bootstrap confidence intervals (2,000 resamples, fixed seed), p50/p95 latency and a per-query breakdown. Each report records the dataset SHA-256, git commit, embedding space and chunker version.
+
+Relevance is declared by quoting passage text (`contains`), not by chunk IDs, so labels survive re-chunking. The run aborts if a phrase matches no chunk, if the project's corpus differs from the dataset's, or if any chunk lacks an embedding.
+
+Results for `retrieval-dev-v0.1`: 24 hand-labelled queries over 3 TP53/glioma papers (79 chunks), `nomic-embed-text`, chunker `section-sentence-v1`. The full report is in `evals/reports/retrieval-dev-v0.1.json`.
+
+| Mode | recall@5 | recall@10 | MRR@10 | nDCG@10 | p50 / p95 ms |
+|---|---|---|---|---|---|
+| keyword | 0.802 [0.67–0.93] | 0.878 [0.76–0.96] | 0.704 [0.57–0.84] | 0.692 [0.58–0.81] | 4 / 8 |
+| semantic | 0.767 [0.62–0.90] | 0.837 [0.72–0.93] | 0.821 [0.68–0.94] | 0.762 [0.63–0.88] | 48 / 101 |
+| hybrid | 0.851 [0.75–0.94] | 0.976 [0.94–1.00] | 0.872 [0.76–0.96] | 0.832 [0.75–0.91] | 32 / 40 |
+
+Latencies are measured with the embedding model already loaded; loading it cold adds about 3 s to the first semantic query.
+
+These results come with caveats:
+
+- This is a small **development** set. It was labelled by one annotator, it was used to set `min_similarity`, and it is not held out, so treat the numbers as a sanity check and a regression baseline, not as a general quality claim.
+- Keyword search is strongest on exact-identifier queries; semantic search is strongest on paraphrased questions.
+- A reranker, a held-out test set and answer-level metrics (claim support, abstention accuracy) are planned for M07.
 
 ## Repository layout
 
@@ -264,7 +334,9 @@ backend/
     ingestion/   # license policy, chunker, versioned document store, ingestion pipeline
     storage/     # object store (filesystem, content-addressed)
     workers/     # ingestion worker (separate process, DB job queue)
-  alembic/       # migrations (0001 baseline … 0005 evidence)
+    retrieval/   # embeddings (spaces, batching), hybrid keyword + vector search with RRF
+    evals/       # ranking metrics with bootstrap CIs, retrieval ablation runner
+  alembic/       # migrations (0001 baseline … 0006 retrieval)
   model_registry.yaml
   tests/         # fixtures: recorded PubMed payloads (abstracts/affiliations replaced), Europe PMC CC BY full text
 frontend/
@@ -277,6 +349,9 @@ compose.yaml       # db, backend, worker, frontend
 compose.ai.yaml    # optional Ollama service
 compose.gpu.yaml   # optional NVIDIA GPU for Ollama
 .github/workflows/ci.yml
+evals/
+  datasets/        # gold sets (JSONL; relevance by quoted passage text)
+  reports/         # eval reports with dataset hash, commit, embedding space
 ```
 
 ## Roadmap
@@ -288,7 +363,7 @@ compose.gpu.yaml   # optional NVIDIA GPU for Ollama
 | **M03 Source Lookup** ✅ | Read-only PubMed search with stable IDs and provenance, no LLM |
 | **M04 LLM Gateway** ✅ | Local Ollama / OpenAI-compatible gateway, streaming runs, model registry, usage tracking |
 | **M05 Evidence Ingestion** ✅ | Durable ingestion worker, license-gated OA full text, versioned documents, section/sentence chunks |
-| M06 Retrieval / RAG | Embeddings, hybrid FTS + vector search, validated citations |
+| **M06 Retrieval / RAG** ✅ | Embeddings, hybrid FTS + vector search (RRF), grounded answers with validated citations, evidence board, retrieval eval |
 | M07 Quality & Evals | Gold dataset, reranking, citation support metrics, tracing |
 | M08 Entity Intelligence | UniProt / NCBI / Open Targets, entity resolution |
 | M09 Security & Multi-user | Auth, ACLs, data isolation, rate limits |
