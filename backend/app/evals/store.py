@@ -69,7 +69,7 @@ def _write_report(out: Path, report: dict[str, Any]) -> None:
 
 
 async def save(
-    session: AsyncSession, kind: Literal["retrieval", "answers"], report: dict[str, Any], out: Path | None
+    session: AsyncSession, kind: Literal["retrieval", "answers", "entities"], report: dict[str, Any], out: Path | None
 ) -> str:
     run = report["evaluation_run"]
     evaluation = Evaluation(

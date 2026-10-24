@@ -7,7 +7,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.errors import UpstreamInvalidResponseError
-from app.integrations.http import RateLimiter, RetryPolicy, get_with_retries
+from app.integrations.http import RateLimiter, RetryPolicy, request_with_retries
 from app.schemas.literature import PMCID_PATTERN, PMID_PATTERN
 
 PROVIDER = "Europe PMC"
@@ -54,8 +54,9 @@ class EuropePMCClient:
     async def open_access_info(self, pmid: str) -> OpenAccessInfo:
         if not PMID_PATTERN.fullmatch(pmid):
             raise ValueError(f"invalid PMID {pmid!r}")
-        response = await get_with_retries(
+        response = await request_with_retries(
             self._http,
+            "GET",
             f"{self._base_url}/search",
             params={"query": f"EXT_ID:{pmid} AND SRC:MED", "resultType": "core", "format": "json", "pageSize": 1},
             provider=PROVIDER,
@@ -80,8 +81,9 @@ class EuropePMCClient:
     async def full_text_xml(self, pmcid: str) -> bytes:
         # Europe PMC answers 500 (not 404) for articles outside the OA subset; callers only ask for eligible ones,
         # so after retries any failure is reported as unavailable rather than guessed at.
-        response = await get_with_retries(
+        response = await request_with_retries(
             self._http,
+            "GET",
             self.full_text_url(pmcid),
             params={},
             provider=PROVIDER,

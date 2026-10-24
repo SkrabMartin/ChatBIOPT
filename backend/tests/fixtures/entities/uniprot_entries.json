@@ -1,0 +1,936 @@
+{
+ "release": "2026_03",
+ "release_date": "02-September-2026",
+ "results": [
+  {
+   "annotationScore": 5.0,
+   "entryAudit": {
+    "sequenceVersion": 4
+   },
+   "entryType": "UniProtKB reviewed (Swiss-Prot)",
+   "extraAttributes": {
+    "uniParcId": "UPI000002ED67"
+   },
+   "genes": [
+    {
+     "geneName": {
+      "value": "TP53"
+     },
+     "synonyms": [
+      {
+       "value": "P53"
+      }
+     ]
+    }
+   ],
+   "organism": {
+    "commonName": "Human",
+    "lineage": [
+     "Eukaryota",
+     "Metazoa",
+     "Chordata",
+     "Craniata",
+     "Vertebrata",
+     "Euteleostomi",
+     "Mammalia",
+     "Eutheria",
+     "Euarchontoglires",
+     "Primates",
+     "Haplorrhini",
+     "Catarrhini",
+     "Hominidae",
+     "Homo"
+    ],
+    "scientificName": "Homo sapiens",
+    "taxonId": 9606
+   },
+   "primaryAccession": "P04637",
+   "proteinDescription": {
+    "alternativeNames": [
+     {
+      "fullName": {
+       "value": "Antigen NY-CO-13"
+      }
+     },
+     {
+      "fullName": {
+       "value": "Phosphoprotein p53"
+      }
+     },
+     {
+      "fullName": {
+       "value": "Tumor suppressor p53"
+      }
+     }
+    ],
+    "recommendedName": {
+     "fullName": {
+      "value": "Cellular tumor antigen p53"
+     }
+    }
+   },
+   "sequence": {
+    "length": 393
+   },
+   "uniProtKBCrossReferences": [
+    {
+     "database": "Ensembl",
+     "id": "ENST00000269305.9",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000269305.4"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000420246.6",
+     "isoformId": "P04637-2",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000391127.2"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000445888.6",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000391478.2"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000455263.6",
+     "isoformId": "P04637-3",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000398846.2"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000503591.2",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000426252.2"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000504290.5",
+     "isoformId": "P04637-9",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000484409.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000504937.5",
+     "isoformId": "P04637-7",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000481179.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000508793.6",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000424104.2"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000509690.6",
+     "isoformId": "P04637-7",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000425104.2"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000510385.5",
+     "isoformId": "P04637-8",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000478499.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000610292.4",
+     "isoformId": "P04637-4",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000478219.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000610538.4",
+     "isoformId": "P04637-6",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000480868.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000619485.4",
+     "isoformId": "P04637-4",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000482537.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000620739.4",
+     "isoformId": "P04637-4",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000481638.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000622645.4",
+     "isoformId": "P04637-5",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000482222.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000714357.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000519624.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000714359.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000519626.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000905353.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000575412.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000923566.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000593625.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000923567.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000593626.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000923568.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000593627.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000923569.1",
+     "isoformId": "P04637-1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000593628.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000141510.20"
+      }
+     ]
+    },
+    {
+     "database": "GeneID",
+     "id": "7157",
+     "properties": [
+      {
+       "key": "Description",
+       "value": "-"
+      }
+     ]
+    },
+    {
+     "database": "HGNC",
+     "id": "HGNC:11998",
+     "properties": [
+      {
+       "key": "GeneName",
+       "value": "TP53"
+      }
+     ]
+    }
+   ],
+   "uniProtkbId": "P53_HUMAN"
+  },
+  {
+   "annotationScore": 5.0,
+   "entryAudit": {
+    "sequenceVersion": 4
+   },
+   "entryType": "UniProtKB reviewed (Swiss-Prot)",
+   "extraAttributes": {
+    "uniParcId": "UPI00000002B3"
+   },
+   "genes": [
+    {
+     "geneName": {
+      "value": "Tp53"
+     },
+     "synonyms": [
+      {
+       "value": "P53"
+      },
+      {
+       "value": "Trp53"
+      }
+     ]
+    }
+   ],
+   "organism": {
+    "commonName": "Mouse",
+    "lineage": [
+     "Eukaryota",
+     "Metazoa",
+     "Chordata",
+     "Craniata",
+     "Vertebrata",
+     "Euteleostomi",
+     "Mammalia",
+     "Eutheria",
+     "Euarchontoglires",
+     "Glires",
+     "Rodentia",
+     "Myomorpha",
+     "Muroidea",
+     "Muridae",
+     "Murinae",
+     "Mus",
+     "Mus"
+    ],
+    "scientificName": "Mus musculus",
+    "taxonId": 10090
+   },
+   "primaryAccession": "P02340",
+   "proteinDescription": {
+    "alternativeNames": [
+     {
+      "fullName": {
+       "value": "Tumor suppressor p53"
+      }
+     }
+    ],
+    "recommendedName": {
+     "fullName": {
+      "value": "Cellular tumor antigen p53"
+     }
+    }
+   },
+   "sequence": {
+    "length": 390
+   },
+   "uniProtKBCrossReferences": [
+    {
+     "database": "Ensembl",
+     "id": "ENSMUST00000108658.10",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSMUSP00000104298.4"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSMUSG00000059552.14"
+      }
+     ]
+    },
+    {
+     "database": "GeneID",
+     "id": "22059",
+     "properties": [
+      {
+       "key": "Description",
+       "value": "-"
+      }
+     ]
+    }
+   ],
+   "uniProtkbId": "P53_MOUSE"
+  },
+  {
+   "annotationScore": 5.0,
+   "entryAudit": {
+    "sequenceVersion": 1
+   },
+   "entryType": "UniProtKB reviewed (Swiss-Prot)",
+   "extraAttributes": {
+    "uniParcId": "UPI0000044948"
+   },
+   "genes": [
+    {
+     "geneName": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000312",
+        "id": "HGNC:613",
+        "source": "HGNC"
+       }
+      ],
+      "value": "APOE"
+     }
+    }
+   ],
+   "organism": {
+    "commonName": "Human",
+    "lineage": [
+     "Eukaryota",
+     "Metazoa",
+     "Chordata",
+     "Craniata",
+     "Vertebrata",
+     "Euteleostomi",
+     "Mammalia",
+     "Eutheria",
+     "Euarchontoglires",
+     "Primates",
+     "Haplorrhini",
+     "Catarrhini",
+     "Hominidae",
+     "Homo"
+    ],
+    "scientificName": "Homo sapiens",
+    "taxonId": 9606
+   },
+   "primaryAccession": "P02649",
+   "proteinDescription": {
+    "flag": "Precursor",
+    "recommendedName": {
+     "fullName": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000305"
+       }
+      ],
+      "value": "Apolipoprotein E"
+     },
+     "shortNames": [
+      {
+       "value": "Apo-E"
+      }
+     ]
+    }
+   },
+   "sequence": {
+    "length": 317
+   },
+   "uniProtKBCrossReferences": [
+    {
+     "database": "Ensembl",
+     "id": "ENST00000252486.9",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000252486.3"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864817.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534877.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864820.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534879.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864822.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534881.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864826.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534885.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864828.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534887.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864829.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534888.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864834.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534893.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864835.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534894.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864836.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534895.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864837.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534896.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864838.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534897.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864839.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534898.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864840.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534899.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864841.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534900.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864842.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534901.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864843.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534902.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864844.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534903.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864845.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534904.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864846.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534905.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864847.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534906.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864848.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534907.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "Ensembl",
+     "id": "ENST00000864849.1",
+     "properties": [
+      {
+       "key": "ProteinId",
+       "value": "ENSP00000534908.1"
+      },
+      {
+       "key": "GeneId",
+       "value": "ENSG00000130203.11"
+      }
+     ]
+    },
+    {
+     "database": "GeneID",
+     "id": "348",
+     "properties": [
+      {
+       "key": "Description",
+       "value": "-"
+      }
+     ]
+    },
+    {
+     "database": "HGNC",
+     "id": "HGNC:613",
+     "properties": [
+      {
+       "key": "GeneName",
+       "value": "APOE"
+      }
+     ]
+    }
+   ],
+   "uniProtkbId": "APOE_HUMAN"
+  }
+ ]
+}

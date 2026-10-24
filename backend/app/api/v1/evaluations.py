@@ -20,7 +20,7 @@ class EvaluationSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    kind: Literal["retrieval", "answers"]
+    kind: Literal["retrieval", "answers", "entities"]
     dataset: str
     dataset_version: str
     dataset_sha256: str
@@ -36,7 +36,7 @@ class EvaluationRead(EvaluationSummary):
 
 @router.get("", response_model=list[EvaluationSummary])
 async def list_evaluations(
-    session: Session, kind: Literal["retrieval", "answers"] | None = None
+    session: Session, kind: Literal["retrieval", "answers", "entities"] | None = None
 ) -> list[EvaluationSummary]:
     """Recorded evaluation runs, newest first. Runs are produced by the CLI runners (python -m app.evals.*)."""
     query = select(Evaluation).order_by(Evaluation.created_at.desc()).limit(200)

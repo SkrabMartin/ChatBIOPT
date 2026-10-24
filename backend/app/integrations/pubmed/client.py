@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.errors import UpstreamInvalidResponseError
-from app.integrations.http import RateLimiter, RetryPolicy, get_with_retries
+from app.integrations.http import RateLimiter, RetryPolicy, request_with_retries
 from app.integrations.pubmed.parser import parse_efetch
 from app.schemas.literature import PMID_PATTERN, LiteratureRecord
 
@@ -61,20 +61,24 @@ class PubMedClient:
         self._retry = retry
 
     @classmethod
-    def from_settings(cls, http: httpx.AsyncClient, settings: Settings) -> "PubMedClient":
+    def from_settings(
+        cls, http: httpx.AsyncClient, settings: Settings, limiter: RateLimiter | None = None
+    ) -> "PubMedClient":
+        """Pass `limiter` to share NCBI's per-client request budget with other E-utilities clients (NCBI Gene)."""
         return cls(
             http,
             base_url=settings.ncbi_base_url,
             tool=settings.ncbi_tool,
             email=settings.ncbi_email,
             api_key=settings.ncbi_api_key,
-            limiter=RateLimiter(settings.ncbi_requests_per_second),
+            limiter=limiter or RateLimiter(settings.ncbi_requests_per_second),
             retry=RetryPolicy(max_attempts=settings.ncbi_max_attempts, backoff_base_s=settings.ncbi_backoff_base_s),
         )
 
     async def _get(self, endpoint: str, params: dict[str, str | int]) -> httpx.Response:
-        return await get_with_retries(
+        return await request_with_retries(
             self._http,
+            "GET",
             f"{self._base_url}/{endpoint}",
             params={**params, **self._identity},
             provider=PROVIDER,

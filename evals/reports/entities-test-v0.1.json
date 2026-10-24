@@ -1,0 +1,1347 @@
+{
+  "evaluation_run": {
+    "dataset": "bioresearch-entities-test",
+    "dataset_version": "0.1",
+    "dataset_sha256": "43daabe1ce6b022d5c8418adddcf9fe1b1f67ddd8e4a1901f44ef1b8c1cf1e21",
+    "split": "test",
+    "git_commit": "821080b",
+    "items": 45,
+    "resolver_version": "entity-resolver-v1",
+    "providers": {
+      "NCBI Gene": "Build261023-2230m.1",
+      "Ensembl": "116",
+      "UniProt": "2026_03"
+    },
+    "created_at": "2026-10-24T22:25:22.597334+00:00",
+    "evaluation_id": "6daec9f4-eab6-4731-b5fa-3f4bd1c2cc93"
+  },
+  "results": {
+    "entity-resolver-v1": {
+      "metrics": {
+        "accuracy": {
+          "mean": 1.0,
+          "ci95_low": 1.0,
+          "ci95_high": 1.0,
+          "n": 45
+        },
+        "status_accuracy": {
+          "mean": 1.0,
+          "ci95_low": 1.0,
+          "ci95_high": 1.0,
+          "n": 45
+        },
+        "wrong_organism_rate": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0,
+          "n": 45
+        },
+        "false_resolution_rate": {
+          "mean": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0,
+          "n": 45
+        }
+      },
+      "latency_ms": {
+        "p50": 649,
+        "p95": 3067
+      },
+      "failed_runs": [],
+      "warnings": []
+    }
+  },
+  "by_category": {
+    "alias": 1.0,
+    "ambiguous": 1.0,
+    "cross_species": 1.0,
+    "identifier": 1.0,
+    "lifecycle": 1.0,
+    "not_found": 1.0,
+    "official_symbol": 1.0
+  },
+  "items": [
+    {
+      "id": "e01",
+      "category": "official_symbol",
+      "query": "TP53",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "7157"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 1107,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e02",
+      "category": "official_symbol",
+      "query": "BRCA1",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "672"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "672",
+          "BRCA1",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 3010,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e03",
+      "category": "official_symbol",
+      "query": "EGFR",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "1956"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "1956",
+          "EGFR",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2703,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e04",
+      "category": "official_symbol",
+      "query": "KRAS",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "3845"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "3845",
+          "KRAS",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 769,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e05",
+      "category": "official_symbol",
+      "query": "apoe",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "348"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "348",
+          "APOE",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 710,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e06",
+      "category": "official_symbol",
+      "query": "Trp53",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "22059"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "22059",
+          "Trp53",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2735,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e07",
+      "category": "official_symbol",
+      "query": "Brca1",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "12189"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "12189",
+          "Brca1",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 632,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e08",
+      "category": "official_symbol",
+      "query": "Egfr",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "13649"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "13649",
+          "Egfr",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2817,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e09",
+      "category": "official_symbol",
+      "query": "Apoe",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "11816"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "11816",
+          "Apoe",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 641,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e10",
+      "category": "official_symbol",
+      "query": "Tp53",
+      "taxon_id": 10116,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "24842"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "24842",
+          "Tp53",
+          10116
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 649,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e11",
+      "category": "official_symbol",
+      "query": "TP53",
+      "taxon_id": 7955,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "30590"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "30590",
+          "tp53",
+          7955
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2818,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e12",
+      "category": "official_symbol",
+      "query": "p53",
+      "taxon_id": 7227,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "2768677"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "2768677",
+          "p53",
+          7227
+        ],
+        [
+          "41273",
+          "hth",
+          7227
+        ],
+        [
+          "37888",
+          "betaTub60D",
+          7227
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "\u201cp53\u201d is also an alias of hth (NCBI Gene 41273), betaTub60D (NCBI Gene 37888)."
+      ],
+      "latency_ms": 663,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e13",
+      "category": "official_symbol",
+      "query": "cep-1",
+      "taxon_id": 6239,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "172616"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "172616",
+          "cep-1",
+          6239
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2883,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e14",
+      "category": "official_symbol",
+      "query": "RAD51",
+      "taxon_id": 559292,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "856831"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "856831",
+          "RAD51",
+          559292
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 815,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e15",
+      "category": "alias",
+      "query": "TP53",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "22059"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "22059",
+          "Trp53",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "\u201cTP53\u201d is an alias; the official symbol is Trp53 (NCBI Gene 22059)."
+      ],
+      "latency_ms": 2916,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e16",
+      "category": "alias",
+      "query": "Trp53",
+      "taxon_id": 10116,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "24842"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "24842",
+          "Tp53",
+          10116
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "\u201cTrp53\u201d is an alias; the official symbol is Tp53 (NCBI Gene 24842)."
+      ],
+      "latency_ms": 594,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e17",
+      "category": "alias",
+      "query": "HER2",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "2064"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "2064",
+          "ERBB2",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "\u201cHER2\u201d is an alias; the official symbol is ERBB2 (NCBI Gene 2064)."
+      ],
+      "latency_ms": 3067,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e18",
+      "category": "alias",
+      "query": "RSC1A1",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "84301"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "84301",
+          "DDI2",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "\u201cRSC1A1\u201d is an alias; the official symbol is DDI2 (NCBI Gene 84301)."
+      ],
+      "latency_ms": 480,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e19",
+      "category": "ambiguous",
+      "query": "p40",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "ambiguous",
+        "gene_ids": [
+          "5594",
+          "8626"
+        ]
+      },
+      "status": "ambiguous",
+      "candidates": [
+        [
+          "5594",
+          "MAPK1",
+          9606
+        ],
+        [
+          "8626",
+          "TP63",
+          9606
+        ],
+        [
+          "3578",
+          "IL9",
+          9606
+        ],
+        [
+          "3921",
+          "RPSA",
+          9606
+        ],
+        [
+          "9181",
+          "ARHGEF2",
+          9606
+        ],
+        [
+          "5713",
+          "PSMD7",
+          9606
+        ],
+        [
+          "10969",
+          "EBNA1BP2",
+          9606
+        ],
+        [
+          "10314",
+          "LANCL1",
+          9606
+        ],
+        [
+          "84312",
+          "BRMS1L",
+          9606
+        ],
+        [
+          "10244",
+          "RABEPK",
+          9606
+        ],
+        [
+          "339541",
+          "ARMH1",
+          9606
+        ],
+        [
+          "115482699",
+          "H3P28",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2914,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e20",
+      "category": "ambiguous",
+      "query": "DEC1",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "ambiguous",
+        "gene_ids": [
+          "8553",
+          "50514"
+        ]
+      },
+      "status": "ambiguous",
+      "candidates": [
+        [
+          "8553",
+          "BHLHE40",
+          9606
+        ],
+        [
+          "50514",
+          "DELEC1",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 740,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e21",
+      "category": "identifier",
+      "query": "7157",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "7157"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 2290,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e22",
+      "category": "identifier",
+      "query": "ENSG00000141510",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "7157"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 605,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e23",
+      "category": "identifier",
+      "query": "ENSG00000012048",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "672"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "672",
+          "BRCA1",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 332,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e24",
+      "category": "identifier",
+      "query": "ENSMUSG00000017146",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "12189"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "12189",
+          "Brca1",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 414,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e25",
+      "category": "identifier",
+      "query": "ENSDARG00000115148",
+      "taxon_id": 7955,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "30590"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "30590",
+          "tp53",
+          7955
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 364,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e26",
+      "category": "identifier",
+      "query": "HGNC:11998",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "7157"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 472,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e27",
+      "category": "identifier",
+      "query": "HGNC:1100",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "672"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "672",
+          "BRCA1",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 339,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e28",
+      "category": "identifier",
+      "query": "P38398",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "672"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "672",
+          "BRCA1",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 323,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e29",
+      "category": "identifier",
+      "query": "P04637-2",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "7157"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "Isoform -2 not distinguished: genes are resolved from the entry."
+      ],
+      "latency_ms": 2644,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e30",
+      "category": "identifier",
+      "query": "P02340",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "22059"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "22059",
+          "Trp53",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 398,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e31",
+      "category": "cross_species",
+      "query": "7157",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "7157"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 337,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e32",
+      "category": "cross_species",
+      "query": "22059",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "22059"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "22059",
+          "Trp53",
+          10090
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 2285,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e33",
+      "category": "cross_species",
+      "query": "ENSMUSG00000059552",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "22059"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "22059",
+          "Trp53",
+          10090
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 3174,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e34",
+      "category": "cross_species",
+      "query": "ENSG00000141510",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "7157"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 326,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e35",
+      "category": "cross_species",
+      "query": "P04637",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "7157"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 545,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e36",
+      "category": "cross_species",
+      "query": "P02340",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "22059"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "22059",
+          "Trp53",
+          10090
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 298,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e37",
+      "category": "cross_species",
+      "query": "HGNC:11998",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "7157"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "7157",
+          "TP53",
+          9606
+        ]
+      ],
+      "warnings": [
+        "HGNC identifiers name human genes only."
+      ],
+      "latency_ms": 360,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e38",
+      "category": "cross_species",
+      "query": "12189",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "taxon_mismatch",
+        "elsewhere": [
+          "12189"
+        ]
+      },
+      "status": "taxon_mismatch",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "12189",
+          "Brca1",
+          10090
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 309,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e39",
+      "category": "lifecycle",
+      "query": "6248",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "84301"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "84301",
+          "DDI2",
+          9606
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "NCBI Gene 6248 was replaced by 84301."
+      ],
+      "latency_ms": 2796,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e40",
+      "category": "lifecycle",
+      "query": "69994",
+      "taxon_id": 10090,
+      "expect": {
+        "status": "resolved",
+        "gene_ids": [
+          "68817"
+        ]
+      },
+      "status": "resolved",
+      "candidates": [
+        [
+          "68817",
+          "Ddi2",
+          10090
+        ]
+      ],
+      "found_elsewhere": [],
+      "warnings": [
+        "NCBI Gene 69994 was replaced by 68817."
+      ],
+      "latency_ms": 860,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e41",
+      "category": "lifecycle",
+      "query": "102724970",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "not_found"
+      },
+      "status": "not_found",
+      "candidates": [],
+      "found_elsewhere": [],
+      "warnings": [
+        "NCBI Gene 102724970 (LOC102724970) is discontinued."
+      ],
+      "latency_ms": 143,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e42",
+      "category": "not_found",
+      "query": "APOE",
+      "taxon_id": 7227,
+      "expect": {
+        "status": "not_found"
+      },
+      "status": "not_found",
+      "candidates": [],
+      "found_elsewhere": [
+        [
+          "348",
+          "APOE",
+          9606
+        ],
+        [
+          "11816",
+          "Apoe",
+          10090
+        ],
+        [
+          "25728",
+          "Apoe",
+          10116
+        ]
+      ],
+      "warnings": [],
+      "latency_ms": 3154,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e43",
+      "category": "not_found",
+      "query": "ENSG00000999999",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "not_found"
+      },
+      "status": "not_found",
+      "candidates": [],
+      "found_elsewhere": [],
+      "warnings": [
+        "Ensembl does not know ENSG00000999999."
+      ],
+      "latency_ms": 296,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e44",
+      "category": "not_found",
+      "query": "NOTAGENE1",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "not_found"
+      },
+      "status": "not_found",
+      "candidates": [],
+      "found_elsewhere": [],
+      "warnings": [],
+      "latency_ms": 480,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    },
+    {
+      "id": "e45",
+      "category": "not_found",
+      "query": "Q9ZZZ9",
+      "taxon_id": 9606,
+      "expect": {
+        "status": "not_found"
+      },
+      "status": "not_found",
+      "candidates": [],
+      "found_elsewhere": [],
+      "warnings": [
+        "UniProtKB Q9ZZZ9 is inactive (deleted: Not part of a reference proteome)."
+      ],
+      "latency_ms": 269,
+      "accuracy": 1.0,
+      "status_accuracy": 1.0,
+      "wrong_organism_rate": 0.0,
+      "false_resolution_rate": 0.0
+    }
+  ]
+}

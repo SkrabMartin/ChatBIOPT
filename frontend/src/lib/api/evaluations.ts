@@ -4,7 +4,7 @@ import { apiRequest } from "./client";
 
 const summarySchema = z.object({
   id: z.string(),
-  kind: z.enum(["retrieval", "answers"]),
+  kind: z.enum(["retrieval", "answers", "entities"]),
   dataset: z.string(),
   dataset_version: z.string(),
   dataset_sha256: z.string(),

@@ -1,5 +1,6 @@
 """ORM models. Importing this package registers every table on `Base.metadata` (needed by Alembic)."""
 
+from app.models.entities import Entity, EntityEdge, ProjectEntity
 from app.models.evidence import Chunk, Document, IngestionJob, ProjectSource
 from app.models.literature import LiteratureSearch, Source, SourceIdentifier
 from app.models.retrieval import ChunkEmbedding, Claim, ClaimEvidence, Evaluation, RunEvidence
@@ -13,11 +14,14 @@ __all__ = [
     "ClaimEvidence",
     "Conversation",
     "Document",
+    "Entity",
+    "EntityEdge",
     "Evaluation",
     "IngestionJob",
     "LiteratureSearch",
     "Message",
     "Project",
+    "ProjectEntity",
     "ProjectSource",
     "Run",
     "RunEvidence",

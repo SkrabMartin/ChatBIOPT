@@ -77,6 +77,9 @@ jobs:
         run: |
           curl --fail --silent --show-error http://127.0.0.1:8080/ | grep -q "<div id=\"root\">"
           curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
+          # Entity routes and migration 0008 are live (no provider call: CI does not depend on NCBI/UniProt uptime)
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | grep -q '"migration_revision":"0008"'
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/entities/organisms | jq -e '.[] | select(.taxon_id == 9606)' >/dev/null
       - name: Workspace data survives a full stack restart
         run: |
           api=http://127.0.0.1:8080/api/v1

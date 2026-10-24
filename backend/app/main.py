@@ -18,6 +18,8 @@ from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.tracing import configure_tracing
 from app.db.session import create_engine
+from app.entities.service import EntityProviders
+from app.integrations.http import RateLimiter
 from app.integrations.pubmed.client import PubMedClient
 from app.services.runs import recover_interrupted_runs
 from app.storage.object_store import FilesystemObjectStore
@@ -44,7 +46,10 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
             headers={"User-Agent": user_agent},
             follow_redirects=False,
         )
-        app.state.pubmed = PubMedClient.from_settings(http, settings)
+        # One budget for all E-utilities databases: NCBI rate-limits per client, not per database.
+        ncbi_limiter = RateLimiter(settings.ncbi_requests_per_second)
+        app.state.pubmed = PubMedClient.from_settings(http, settings, ncbi_limiter)
+        app.state.entity_providers = EntityProviders.from_settings(http, settings, ncbi_limiter)
         app.state.object_store = FilesystemObjectStore(settings.object_store_path)
 
         model_http = httpx.AsyncClient(

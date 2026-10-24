@@ -1,0 +1,18 @@
+{
+ "release": "2026_03",
+ "results": [
+  {
+   "annotationScore": 0.0,
+   "entryType": "Inactive",
+   "extraAttributes": {
+    "uniParcId": "UPI000008B5B6"
+   },
+   "inactiveReason": {
+    "deletedReason": "Not part of a reference proteome",
+    "inactiveReasonType": "DELETED"
+   },
+   "primaryAccession": "Q9ZZZ9",
+   "uniProtkbId": "Q9ZZZ9_9HEXA"
+  }
+ ]
+}

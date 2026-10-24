@@ -1,0 +1,1066 @@
+{
+ "header": {
+  "type": "esummary",
+  "version": "0.3"
+ },
+ "result": {
+  "102724970": {
+   "chromosome": "1",
+   "chrsort": "01",
+   "chrstart": 16535772,
+   "currentid": "",
+   "description": "putative uncharacterized protein FLJ35883",
+   "geneticsource": "genomic",
+   "geneweight": 64,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000001.11",
+     "chrloc": "1",
+     "chrstart": 16535772,
+     "chrstop": 16536955,
+     "exoncount": 2
+    }
+   ],
+   "locationhist": [],
+   "maplocation": "",
+   "mim": [],
+   "name": "LOC102724970",
+   "nomenclaturename": "",
+   "nomenclaturestatus": "",
+   "nomenclaturesymbol": "",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "",
+   "otherdesignations": "",
+   "status": 2,
+   "summary": "DISCONTINUED: This record has been withdrawn by NCBI staff. This record was defined by AK093202.1, which is not sufficient evidence to define a distinct gene.",
+   "uid": "102724970"
+  },
+  "11816": {
+   "chromosome": "7",
+   "chrsort": "07",
+   "chrstart": 19430168,
+   "currentid": "",
+   "description": "apolipoprotein E",
+   "geneticsource": "genomic",
+   "geneweight": 174166,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000073.7",
+     "chrloc": "7",
+     "chrstart": 19434325,
+     "chrstop": 19430168,
+     "exoncount": 7
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2024_02",
+     "assemblyaccver": "GCF_000001635.27",
+     "chraccver": "NC_000073.7",
+     "chrstart": 19434325,
+     "chrstop": 19430168
+    },
+    {
+     "annotationrelease": "RS_2023_04",
+     "assemblyaccver": "GCF_000001635.27",
+     "chraccver": "NC_000073.7",
+     "chrstart": 19434325,
+     "chrstop": 19430168
+    },
+    {
+     "annotationrelease": "108.20200622",
+     "assemblyaccver": "GCF_000001635.26",
+     "chraccver": "NC_000073.6",
+     "chrstart": 19701309,
+     "chrstop": 19696243
+    }
+   ],
+   "maplocation": "7 9.94 cM",
+   "mim": [],
+   "name": "Apoe",
+   "nomenclaturename": "apolipoprotein E",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "Apoe",
+   "organism": {
+    "commonname": "house mouse",
+    "scientificname": "Mus musculus",
+    "taxid": 10090
+   },
+   "otheraliases": "Apo-E",
+   "otherdesignations": "apolipoprotein E",
+   "status": "",
+   "summary": "This gene encodes a member of the apolipoprotein A1/A4/E family of proteins. This protein is involved in the transport of lipoproteins in the blood. It binds to a specific liver and peripheral cell receptor, and is essential for the normal catabolism of triglyceride-rich lipoprotein constituents. Homozygous knockout mice for this gene accumulate high levels of cholesterol in the blood and develop atherosclerosis. Different alleles of this gene have been associated with either increased risk or a protective effect for Alzheimer's disease in human patients. This gene maps to chromosome 7 in a cluster with the related apolipoprotein C1, C2 and C4 genes. [provided by RefSeq, Apr 2015]",
+   "uid": "11816"
+  },
+  "22059": {
+   "chromosome": "11",
+   "chrsort": "11",
+   "chrstart": 69471173,
+   "currentid": "",
+   "description": "transformation related protein 53",
+   "geneticsource": "genomic",
+   "geneweight": 228943,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000077.7",
+     "chrloc": "11",
+     "chrstart": 69471173,
+     "chrstop": 69482698,
+     "exoncount": 12
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2024_02",
+     "assemblyaccver": "GCF_000001635.27",
+     "chraccver": "NC_000077.7",
+     "chrstart": 69471173,
+     "chrstop": 69482698
+    },
+    {
+     "annotationrelease": "RS_2023_04",
+     "assemblyaccver": "GCF_000001635.27",
+     "chraccver": "NC_000077.7",
+     "chrstart": 69471173,
+     "chrstop": 69482698
+    },
+    {
+     "annotationrelease": "108.20200622",
+     "assemblyaccver": "GCF_000001635.26",
+     "chraccver": "NC_000077.6",
+     "chrstart": 69580347,
+     "chrstop": 69591872
+    }
+   ],
+   "maplocation": "11 42.83 cM",
+   "mim": [],
+   "name": "Trp53",
+   "nomenclaturename": "transformation related protein 53",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "Trp53",
+   "organism": {
+    "commonname": "house mouse",
+    "scientificname": "Mus musculus",
+    "taxid": 10090
+   },
+   "otheraliases": "Tp53, bbl, bfy, bhy, p44, p53",
+   "otherdesignations": "cellular tumor antigen p53|ME-delta123p53|mutant p53|p53 cellular tumor antigen|tumor suppressor p53|tumor supressor p53",
+   "status": "",
+   "summary": "This gene encodes tumor protein p53, which responds to diverse cellular stresses to regulate target genes that induce cell cycle arrest, apoptosis, senescence, DNA repair, or changes in metabolism. p53 protein is expressed at low level in normal cells and at a high level in a variety of transformed cell lines, where it's believed to contribute to transformation and malignancy. p53 is a DNA-binding protein containing transcription activation, DNA-binding, and oligomerization domains. It is postulated to bind to a p53-binding site and activate expression of downstream genes that inhibit growth and/or invasion, and thus function as a tumor suppressor. Mice deficient for this gene are developmentally normal but are susceptible to spontaneous tumors. Evidence to date shows that this gene contains one promoter, in contrast to alternative promoters of the human gene, and transcribes a few of splice variants which encode different isoforms, although the biological validity or the full-length nature of some variants has not been determined. [provided by RefSeq, Jul 2008]",
+   "uid": "22059"
+  },
+  "348": {
+   "chromosome": "19",
+   "chrsort": "19",
+   "chrstart": 44905795,
+   "currentid": "",
+   "description": "apolipoprotein E",
+   "geneticsource": "genomic",
+   "geneweight": 292683,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000019.10",
+     "chrloc": "19",
+     "chrstart": 44905795,
+     "chrstop": 44909392,
+     "exoncount": 6
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000019.10",
+     "chrstart": 44905795,
+     "chrstop": 44909392
+    },
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060943.1",
+     "chrstart": 47730491,
+     "chrstop": 47734088
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000019.10",
+     "chrstart": 44905795,
+     "chrstop": 44909392
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060943.1",
+     "chrstart": 47730491,
+     "chrstop": 47734088
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000019.10",
+     "chrstart": 44905795,
+     "chrstop": 44909392
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060943.1",
+     "chrstart": 47730491,
+     "chrstop": 47734088
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000019.10",
+     "chrstart": 44905795,
+     "chrstop": 44909392
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060943.1",
+     "chrstart": 47730491,
+     "chrstop": 47734088
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000019.10",
+     "chrstart": 44905795,
+     "chrstop": 44909392
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060943.1",
+     "chrstart": 47730491,
+     "chrstop": 47734088
+    },
+    {
+     "annotationrelease": "109.20211119",
+     "assemblyaccver": "GCF_000001405.39",
+     "chraccver": "NC_000019.10",
+     "chrstart": 44905795,
+     "chrstop": 44909392
+    },
+    {
+     "annotationrelease": "RS_2024_09",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000019.9",
+     "chrstart": 45409052,
+     "chrstop": 45412649
+    },
+    {
+     "annotationrelease": "105.20220307",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000019.9",
+     "chrstart": 45409052,
+     "chrstop": 45412649
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000019.9",
+     "chrstart": 45409038,
+     "chrstop": 45412649
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000002125.1",
+     "chraccver": "AC_000151.1",
+     "chrstart": 41839824,
+     "chrstop": 41843435
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000306695.2",
+     "chraccver": "NC_018930.2",
+     "chrstart": 45411792,
+     "chrstop": 45415403
+    }
+   ],
+   "maplocation": "19q13.32",
+   "mim": [
+    "107741"
+   ],
+   "name": "APOE",
+   "nomenclaturename": "apolipoprotein E",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "APOE",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "AD2, APO-E, ApoE4, LDLCQ5, LPG",
+   "otherdesignations": "apolipoprotein E|apolipoprotein E3",
+   "status": "",
+   "summary": "The protein encoded by this gene is a major apoprotein of the chylomicron. It binds to a specific liver and peripheral cell receptor, and is essential for the normal catabolism of triglyceride-rich lipoprotein constituents. This gene maps to chromosome 19 in a cluster with the related apolipoprotein C1 and C2 genes. Mutations in this gene result in familial dysbetalipoproteinemia, or type III hyperlipoproteinemia (HLP III), in which increased plasma cholesterol and triglycerides are the consequence of impaired clearance of chylomicron and VLDL remnants. [provided by RefSeq, Jun 2016]",
+   "uid": "348"
+  },
+  "5594": {
+   "chromosome": "22",
+   "chrsort": "22",
+   "chrstart": 21759656,
+   "currentid": "",
+   "description": "mitogen-activated protein kinase 1",
+   "geneticsource": "genomic",
+   "geneweight": 121684,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000022.11",
+     "chrloc": "22",
+     "chrstart": 21867679,
+     "chrstop": 21759656,
+     "exoncount": 9
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000022.11",
+     "chrstart": 21867679,
+     "chrstop": 21759656
+    },
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060946.1",
+     "chrstart": 22281195,
+     "chrstop": 22173147
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000022.11",
+     "chrstart": 21867679,
+     "chrstop": 21759656
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060946.1",
+     "chrstart": 22281195,
+     "chrstop": 22173147
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000022.11",
+     "chrstart": 21867679,
+     "chrstop": 21759656
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060946.1",
+     "chrstart": 22281195,
+     "chrstop": 22173147
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000022.11",
+     "chrstart": 21867679,
+     "chrstop": 21759656
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060946.1",
+     "chrstart": 22281195,
+     "chrstop": 22173147
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000022.11",
+     "chrstart": 21867679,
+     "chrstop": 21759656
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060946.1",
+     "chrstart": 22281195,
+     "chrstop": 22173147
+    },
+    {
+     "annotationrelease": "109.20211119",
+     "assemblyaccver": "GCF_000001405.39",
+     "chraccver": "NC_000022.11",
+     "chrstart": 21867679,
+     "chrstop": 21759656
+    },
+    {
+     "annotationrelease": "RS_2024_09",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000022.10",
+     "chrstart": 22221969,
+     "chrstop": 22113945
+    },
+    {
+     "annotationrelease": "105.20220307",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000022.10",
+     "chrstart": 22221969,
+     "chrstop": 22113945
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000022.10",
+     "chrstart": 22221969,
+     "chrstop": 22113945
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000002125.1",
+     "chraccver": "AC_000154.1",
+     "chrstart": 5179616,
+     "chrstop": 5071208
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000306695.2",
+     "chraccver": "NC_018933.2",
+     "chrstart": 22222149,
+     "chrstop": 22114126
+    }
+   ],
+   "maplocation": "22q11.22",
+   "mim": [
+    "176948"
+   ],
+   "name": "MAPK1",
+   "nomenclaturename": "mitogen-activated protein kinase 1",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "MAPK1",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "ERK, ERK-2, ERK2, ERT1, MAPK2, NS13, P42MAPK, PRKM1, PRKM2, p38, p40, p41, p41mapk, p42-MAPK",
+   "otherdesignations": "mitogen-activated protein kinase 1|MAP kinase 1|MAP kinase 2|MAPK 2|extracellular signal-regulated kinase 2|mitogen-activated protein kinase 2|protein tyrosine kinase ERK2",
+   "status": "",
+   "summary": "This gene encodes a member of the MAP kinase family. MAP kinases, also known as extracellular signal-regulated kinases (ERKs), act as an integration point for multiple biochemical signals, and are involved in a wide variety of cellular processes such as proliferation, differentiation, transcription regulation and development. The activation of this kinase requires its phosphorylation by upstream kinases. Upon activation, this kinase translocates to the nucleus of the stimulated cells, where it phosphorylates nuclear targets. One study also suggests that this protein acts as a transcriptional repressor independent of its kinase activity. The encoded protein has been identified as a moonlighting protein based on its ability to perform mechanistically distinct functions. Two alternatively spliced transcript variants encoding the same protein, but differing in the UTRs, have been reported for this gene. [provided by RefSeq, Jan 2014]",
+   "uid": "5594"
+  },
+  "6248": {
+   "chromosome": "1",
+   "chrsort": "~~last",
+   "chrstart": 999999999,
+   "currentid": 84301,
+   "description": "regulator of solute carriers 1",
+   "geneticsource": "genomic",
+   "geneweight": 64,
+   "genomicinfo": [],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15659712,
+     "chrstop": 15662032
+    },
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15104443,
+     "chrstop": 15106763
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15659712,
+     "chrstop": 15662032
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15104443,
+     "chrstop": 15106763
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15659712,
+     "chrstop": 15662032
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15104443,
+     "chrstop": 15106763
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15659712,
+     "chrstop": 15662032
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15104443,
+     "chrstop": 15106763
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15659712,
+     "chrstop": 15662032
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15104443,
+     "chrstop": 15106763
+    },
+    {
+     "annotationrelease": "109.20211119",
+     "assemblyaccver": "GCF_000001405.39",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15659712,
+     "chrstop": 15662032
+    },
+    {
+     "annotationrelease": "RS_2024_09",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000001.10",
+     "chrstart": 15986207,
+     "chrstop": 15988527
+    },
+    {
+     "annotationrelease": "105.20220307",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000001.10",
+     "chrstart": 15986207,
+     "chrstop": 15988527
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000001.10",
+     "chrstart": 15986363,
+     "chrstop": 15988216
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000002125.1",
+     "chraccver": "AC_000133.1",
+     "chrstart": 14505776,
+     "chrstop": 14507629
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000306695.2",
+     "chraccver": "NC_018912.2",
+     "chrstart": 15785101,
+     "chrstop": 15786954
+    }
+   ],
+   "maplocation": "1p36.21",
+   "mim": [],
+   "name": "RSC1A1",
+   "nomenclaturename": "regulator of solute carriers 1",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "RSC1A1",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "RS1",
+   "otherdesignations": "regulatory solute carrier protein, family 1, member 1|transporter regulator RS1",
+   "status": 1,
+   "summary": "The protein encoded by this intronless gene inhibits the expression of the solute carrier family 5 (sodium/glucose cotransporter), member 1 gene (SLC5A1) and downregulates exocytosis of the SLC5A1 protein. The encoded protein is sometimes found coating the trans-Golgi network and other times is localized to the nucleus, depending on the cell cycle stage. This protein also inhibits the expression of solute carrier family 22 (organic cation transporter), member 2 (SLC22A2). [provided by RefSeq, Dec 2015]",
+   "uid": "6248"
+  },
+  "7157": {
+   "chromosome": "17",
+   "chrsort": "17",
+   "chrstart": 7668420,
+   "currentid": "",
+   "description": "tumor protein p53",
+   "geneticsource": "genomic",
+   "geneweight": 846452,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000017.11",
+     "chrloc": "17",
+     "chrstart": 7687489,
+     "chrstop": 7668420,
+     "exoncount": 13
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000017.11",
+     "chrstart": 7687489,
+     "chrstop": 7668420
+    },
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060941.1",
+     "chrstart": 7591593,
+     "chrstop": 7572543
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000017.11",
+     "chrstart": 7687489,
+     "chrstop": 7668420
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060941.1",
+     "chrstart": 7591593,
+     "chrstop": 7572543
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000017.11",
+     "chrstart": 7687489,
+     "chrstop": 7668420
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060941.1",
+     "chrstart": 7591593,
+     "chrstop": 7572543
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000017.11",
+     "chrstart": 7687489,
+     "chrstop": 7668420
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060941.1",
+     "chrstart": 7591593,
+     "chrstop": 7572543
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000017.11",
+     "chrstart": 7687489,
+     "chrstop": 7668420
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060941.1",
+     "chrstart": 7591593,
+     "chrstop": 7572543
+    },
+    {
+     "annotationrelease": "109.20211119",
+     "assemblyaccver": "GCF_000001405.39",
+     "chraccver": "NC_000017.11",
+     "chrstart": 7687489,
+     "chrstop": 7668420
+    },
+    {
+     "annotationrelease": "RS_2024_09",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000017.10",
+     "chrstart": 7590807,
+     "chrstop": 7571738
+    },
+    {
+     "annotationrelease": "105.20220307",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000017.10",
+     "chrstart": 7590807,
+     "chrstop": 7571738
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000017.10",
+     "chrstart": 7590867,
+     "chrstop": 7571719
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000002125.1",
+     "chraccver": "AC_000149.1",
+     "chrstart": 7484282,
+     "chrstop": 7465168
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000306695.2",
+     "chraccver": "NC_018928.2",
+     "chrstart": 7600002,
+     "chrstop": 7580865
+    }
+   ],
+   "maplocation": "17p13.1",
+   "mim": [
+    "191170"
+   ],
+   "name": "TP53",
+   "nomenclaturename": "tumor protein p53",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "TP53",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "BCC7, BMFS5, LFS1, P53, TRP53",
+   "otherdesignations": "cellular tumor antigen p53|antigen NY-CO-13|mutant tumor protein 53|phosphoprotein p53|transformation-related protein 53|tumor protein 53|tumor supressor p53",
+   "status": "",
+   "summary": "This gene encodes a tumor suppressor protein containing transcriptional activation, DNA binding, and oligomerization domains. The encoded protein responds to diverse cellular stresses to regulate expression of target genes, thereby inducing cell cycle arrest, apoptosis, senescence, DNA repair, or changes in metabolism. Mutations in this gene are associated with a variety of human cancers, including hereditary cancers such as Li-Fraumeni syndrome. Alternative splicing of this gene and the use of alternate promoters result in multiple transcript variants and isoforms. Additional isoforms have also been shown to result from the use of alternate translation initiation codons from identical transcript variants (PMIDs: 12032546, 20937277). [provided by RefSeq, Dec 2016]",
+   "uid": "7157"
+  },
+  "84301": {
+   "chromosome": "1",
+   "chrsort": "01",
+   "chrstart": 15617457,
+   "currentid": "",
+   "description": "DDI proteasomal shuttling factor 2",
+   "geneticsource": "genomic",
+   "geneweight": 1185,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000001.11",
+     "chrloc": "1",
+     "chrstart": 15617457,
+     "chrstop": 15669043,
+     "exoncount": 10
+    },
+    {
+     "chraccver": "NC_000001.11",
+     "chrloc": "1",
+     "chrstart": 15659712,
+     "chrstop": 15662032,
+     "exoncount": 10
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15617457,
+     "chrstop": 15669043
+    },
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15062170,
+     "chrstop": 15113774
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15617457,
+     "chrstop": 15669043
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15062170,
+     "chrstop": 15113774
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15617457,
+     "chrstop": 15669043
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15062170,
+     "chrstop": 15113774
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15617457,
+     "chrstop": 15669043
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15062170,
+     "chrstop": 15113774
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15617457,
+     "chrstop": 15669043
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060925.1",
+     "chrstart": 15062170,
+     "chrstop": 15113774
+    },
+    {
+     "annotationrelease": "109.20211119",
+     "assemblyaccver": "GCF_000001405.39",
+     "chraccver": "NC_000001.11",
+     "chrstart": 15617457,
+     "chrstop": 15669043
+    },
+    {
+     "annotationrelease": "RS_2024_09",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000001.10",
+     "chrstart": 15943952,
+     "chrstop": 15995538
+    },
+    {
+     "annotationrelease": "105.20220307",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000001.10",
+     "chrstart": 15943952,
+     "chrstop": 15995538
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000001.10",
+     "chrstart": 15943952,
+     "chrstop": 15995538
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000002125.1",
+     "chraccver": "AC_000133.1",
+     "chrstart": 14463421,
+     "chrstop": 14506964
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000306695.2",
+     "chraccver": "NC_018912.2",
+     "chrstart": 15742626,
+     "chrstop": 15786289
+    }
+   ],
+   "maplocation": "1p36.21",
+   "mim": [
+    "601966",
+    "620871"
+   ],
+   "name": "DDI2",
+   "nomenclaturename": "DDI proteasomal shuttling factor 2",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "DDI2",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "RS1, RSC1A1",
+   "otherdesignations": "protein DDI1 homolog 2|DDI1, DNA-damage inducible 1, homolog 2|DNA damage inducible 1 homolog 2|DNA-damage inducible protein 2 (DDI2)|regulator of solute carriers 1|regulatory solute carrier protein, family 1, member 1",
+   "status": "",
+   "summary": "The protein encoded by this intronless gene inhibits the expression of the solute carrier family 5 (sodium/glucose cotransporter), member 1 gene (SLC5A1) and downregulates exocytosis of the SLC5A1 protein. The encoded protein is sometimes found coating the trans-Golgi network and other times is localized to the nucleus, depending on the cell cycle stage. This protein also inhibits the expression of solute carrier family 22 (organic cation transporter), member 2 (SLC22A2). [provided by RefSeq, Oct 2026]",
+   "uid": "84301"
+  },
+  "8626": {
+   "chromosome": "3",
+   "chrsort": "03",
+   "chrstart": 189596745,
+   "currentid": "",
+   "description": "tumor protein p63",
+   "geneticsource": "genomic",
+   "geneweight": 84817,
+   "genomicinfo": [
+    {
+     "chraccver": "NC_000003.12",
+     "chrloc": "3",
+     "chrstart": 189596745,
+     "chrstop": 189897275,
+     "exoncount": 17
+    }
+   ],
+   "locationhist": [
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000003.12",
+     "chrstart": 189596745,
+     "chrstop": 189897275
+    },
+    {
+     "annotationrelease": "RS_2025_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060927.1",
+     "chrstart": 192413469,
+     "chrstop": 192713712
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000003.12",
+     "chrstart": 189596745,
+     "chrstop": 189897275
+    },
+    {
+     "annotationrelease": "RS_2024_08",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060927.1",
+     "chrstart": 192413469,
+     "chrstop": 192713712
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000003.12",
+     "chrstart": 189596745,
+     "chrstop": 189897275
+    },
+    {
+     "annotationrelease": "RS_2023_10",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060927.1",
+     "chrstart": 192413469,
+     "chrstop": 192713712
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000003.12",
+     "chrstart": 189596745,
+     "chrstop": 189897275
+    },
+    {
+     "annotationrelease": "RS_2023_03",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060927.1",
+     "chrstart": 192413469,
+     "chrstop": 192713712
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_000001405.40",
+     "chraccver": "NC_000003.12",
+     "chrstart": 189596745,
+     "chrstop": 189897275
+    },
+    {
+     "annotationrelease": "110",
+     "assemblyaccver": "GCF_009914755.1",
+     "chraccver": "NC_060927.1",
+     "chrstart": 192413469,
+     "chrstop": 192713712
+    },
+    {
+     "annotationrelease": "109.20211119",
+     "assemblyaccver": "GCF_000001405.39",
+     "chraccver": "NC_000003.12",
+     "chrstart": 189596745,
+     "chrstop": 189897275
+    },
+    {
+     "annotationrelease": "RS_2024_09",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000003.11",
+     "chrstart": 189314534,
+     "chrstop": 189615064
+    },
+    {
+     "annotationrelease": "105.20220307",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000003.11",
+     "chrstart": 189314534,
+     "chrstop": 189615064
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000001405.25",
+     "chraccver": "NC_000003.11",
+     "chrstart": 189348941,
+     "chrstop": 189615067
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000002125.1",
+     "chraccver": "AC_000135.1",
+     "chrstart": 186752881,
+     "chrstop": 187012886
+    },
+    {
+     "annotationrelease": "105",
+     "assemblyaccver": "GCF_000306695.2",
+     "chraccver": "NC_018914.2",
+     "chrstart": 189312089,
+     "chrstop": 189577622
+    }
+   ],
+   "maplocation": "3q28",
+   "mim": [
+    "603273"
+   ],
+   "name": "TP63",
+   "nomenclaturename": "tumor protein p63",
+   "nomenclaturestatus": "Official",
+   "nomenclaturesymbol": "TP63",
+   "organism": {
+    "commonname": "human",
+    "scientificname": "Homo sapiens",
+    "taxid": 9606
+   },
+   "otheraliases": "AIS, B(p51A), B(p51B), EEC3, KET, LMS, NBP, OFC8, RHS, SHFM4, TP53CP, TP53L, TP73L, p40, p51, p53CP, p63, p73H, p73L",
+   "otherdesignations": "tumor protein 63|amplified in squamous cell carcinoma|chronic ulcerative stomatitis protein|keratinocyte transcription factor KET|transformation-related protein 63|tumor protein p53-competing protein",
+   "status": "",
+   "summary": "This gene encodes a member of the p53 family of transcription factors. The functional domains of p53 family proteins include an N-terminal transactivation domain, a central DNA-binding domain and an oligomerization domain. Alternative splicing of this gene and the use of alternative promoters results in multiple transcript variants encoding different isoforms that vary in their functional properties. These isoforms function during skin development and maintenance, adult stem/progenitor cell regulation, heart development and premature aging. Some isoforms have been found to protect the germline by eliminating oocytes or testicular germ cells that have suffered DNA damage. Mutations in this gene are associated with ectodermal dysplasia, and cleft lip/palate syndrome 3 (EEC3); split-hand/foot malformation 4 (SHFM4); ankyloblepharon-ectodermal defects-cleft lip/palate; ADULT syndrome (acro-dermato-ungual-lacrimal-tooth); limb-mammary syndrome; Rap-Hodgkin syndrome (RHS); and orofacial cleft 8. [provided by RefSeq, Aug 2016]",
+   "uid": "8626"
+  },
+  "uids": [
+   "7157",
+   "22059",
+   "348",
+   "11816",
+   "5594",
+   "8626",
+   "6248",
+   "84301",
+   "102724970"
+  ]
+ }
+}

@@ -4,6 +4,7 @@ import { ConversationPage } from '../features/chat/ConversationPage'
 import { LiteraturePage } from '../features/literature/LiteraturePage'
 import { LiteratureRecordPage } from '../features/literature/LiteratureRecordPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { EntityPage } from '../features/entities/EntityPage'
 import { DocumentPage } from '../features/evidence/DocumentPage'
 import { EvaluationsPage } from '../features/evaluations/EvaluationsPage'
 import { EvidenceBoardPage } from '../features/evidence/EvidenceBoardPage'
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
       { path: 'evaluations', element: <EvaluationsPage /> },
       { path: 'documents/:documentId', element: <DocumentPage /> },
       { path: 'projects/:projectId/evidence-board', element: <EvidenceBoardPage /> },
+      { path: 'entities/:entityId', element: <EntityPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

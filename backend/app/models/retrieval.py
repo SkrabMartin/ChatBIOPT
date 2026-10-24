@@ -113,7 +113,7 @@ class Evaluation(Base):
     __tablename__ = "evaluations"
     __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
     __table_args__ = (
-        CheckConstraint("kind IN ('retrieval', 'answers')", name="kind"),
+        CheckConstraint("kind IN ('retrieval', 'answers', 'entities')", name="kind"),
         Index("ix_evaluations_kind_created_at", "kind", "created_at"),
     )
 

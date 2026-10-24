@@ -1,0 +1,505 @@
+{
+ "data": {
+  "meta": {
+   "apiVersion": {
+    "x": "26",
+    "y": "9",
+    "z": "0"
+   },
+   "dataVersion": {
+    "iteration": null,
+    "month": "09",
+    "year": "26"
+   }
+  },
+  "target": {
+   "approvedName": "tumor protein p53",
+   "approvedSymbol": "TP53",
+   "associatedDiseases": {
+    "count": 5198,
+    "rows": [
+     {
+      "datatypeScores": [
+       {
+        "id": "genetic_literature",
+        "score": 0.8539007869518103
+       },
+       {
+        "id": "literature",
+        "score": 0.372399684507101
+       },
+       {
+        "id": "genetic_association",
+        "score": 0.9564356539451176
+       },
+       {
+        "id": "somatic_mutation",
+        "score": 0.4377101742803672
+       },
+       {
+        "id": "animal_model",
+        "score": 0.6372497734413094
+       }
+      ],
+      "disease": {
+       "id": "MONDO_0018875",
+       "name": "Li-Fraumeni syndrome"
+      },
+      "score": 0.8763240905984302
+     },
+     {
+      "datatypeScores": [
+       {
+        "id": "genetic_literature",
+        "score": 0.607930797611621
+       },
+       {
+        "id": "literature",
+        "score": 0.9965405212865955
+       },
+       {
+        "id": "genetic_association",
+        "score": 0.9161436221556352
+       },
+       {
+        "id": "somatic_mutation",
+        "score": 0.8546930263671441
+       },
+       {
+        "id": "animal_model",
+        "score": 0.614403007073547
+       }
+      ],
+      "disease": {
+       "id": "MONDO_0007256",
+       "name": "hepatocellular carcinoma"
+      },
+      "score": 0.7969946589966099
+     },
+     {
+      "datatypeScores": [
+       {
+        "id": "genetic_literature",
+        "score": 0.607930797611621
+       },
+       {
+        "id": "clinical",
+        "score": 0.12158615952232422
+       },
+       {
+        "id": "literature",
+        "score": 0.9871946873662976
+       },
+       {
+        "id": "genetic_association",
+        "score": 0.837452876104994
+       },
+       {
+        "id": "somatic_mutation",
+        "score": 0.8687764418823478
+       }
+      ],
+      "disease": {
+       "id": "MONDO_0010150",
+       "name": "head and neck squamous cell carcinoma"
+      },
+      "score": 0.7771072348484183
+     },
+     {
+      "datatypeScores": [
+       {
+        "id": "genetic_literature",
+        "score": 0.8334055756591312
+       },
+       {
+        "id": "literature",
+        "score": 0.05644387031185621
+       },
+       {
+        "id": "genetic_association",
+        "score": 0.8562672705524287
+       },
+       {
+        "id": "somatic_mutation",
+        "score": 0.3039653988058105
+       },
+       {
+        "id": "animal_model",
+        "score": 0.3718104758192674
+       }
+      ],
+      "disease": {
+       "id": "MONDO_0009837",
+       "name": "choroid plexus papilloma"
+      },
+      "score": 0.7664749612489613
+     },
+     {
+      "datatypeScores": [
+       {
+        "id": "clinical",
+        "score": 0.10638788958203368
+       },
+       {
+        "id": "genetic_literature",
+        "score": 0.8274613634158176
+       },
+       {
+        "id": "literature",
+        "score": 0.9724730416240775
+       },
+       {
+        "id": "genetic_association",
+        "score": 0.9138986656066158
+       },
+       {
+        "id": "somatic_mutation",
+        "score": 0.8340387335170519
+       },
+       {
+        "id": "animal_model",
+        "score": 0.5307394876750661
+       }
+      ],
+      "disease": {
+       "id": "MONDO_0005575",
+       "name": "colorectal cancer"
+      },
+      "score": 0.7500093813544602
+     }
+    ]
+   },
+   "id": "ENSG00000141510",
+   "proteinIds": [
+    {
+     "id": "P04637",
+     "source": "uniprot_swissprot"
+    },
+    {
+     "id": "A0A087WT22",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0A087WXZ1",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0A087X1Q1",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0A0U1RQC9",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0A386NBZ1",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0AAQ5BHX5",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0AAQ5BHY1",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "A0AAQ5BHZ9",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "E7EMR6",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "E7EQX7",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "E7ESS1",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "E9PCY9",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "E9PFT5",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "H2EHT1",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "I3L0W9",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "J3KP33",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "K7PPA8",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "S4R334",
+     "source": "uniprot_trembl"
+    },
+    {
+     "id": "ENSP00000269305",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000352610",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000391127",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000391478",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000398846",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000410739",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000423862",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000424104",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000425104",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000426252",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000458393",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000473895",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000477531",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000478219",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000478499",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000480868",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000481179",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000481401",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000481638",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000482222",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000482537",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000484375",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000484409",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000488924",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000519623",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000519624",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000519625",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000519626",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000519678",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000519679",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000575412",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000593625",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000593626",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000593627",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000593628",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000619176",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "ENSP00000745782",
+     "source": "ensembl_PRO"
+    },
+    {
+     "id": "Q15086",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q15087",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q15088",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16535",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16807",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16808",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16809",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16810",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16811",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q16848",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q2XN98",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q3LRW1",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q3LRW2",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q3LRW3",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q3LRW4",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q3LRW5",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q86UG1",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q8J016",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q99659",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9BTM4",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9HAQ8",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9NP68",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9NPJ2",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9NZD0",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9UBI2",
+     "source": "uniprot_obsolete"
+    },
+    {
+     "id": "Q9UQ61",
+     "source": "uniprot_obsolete"
+    }
+   ]
+  }
+ }
+}

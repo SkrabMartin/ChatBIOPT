@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     ingestion_retry_delay_s: float = Field(default=30.0, ge=0)
     worker_heartbeat_path: Path = Path("var/worker-heartbeat")
 
+    # Entity intelligence (M08). Rates stay below each provider's documented or fair-use limits.
+    uniprot_base_url: str = "https://rest.uniprot.org"
+    uniprot_requests_per_second: float = Field(default=5.0, gt=0, le=20)
+    ensembl_base_url: str = "https://rest.ensembl.org"
+    ensembl_requests_per_second: float = Field(default=10.0, gt=0, le=15)  # Ensembl allows 15/s
+    opentargets_url: str = "https://api.platform.opentargets.org/api/v4/graphql"
+    opentargets_requests_per_second: float = Field(default=5.0, gt=0, le=20)
+    # Strongest Open Targets disease associations stored per human gene.
+    entity_disease_associations: int = Field(default=10, ge=0, le=50)
+
     @property
     def allowed_fulltext_licenses(self) -> frozenset[str]:
         return frozenset(part.strip() for part in self.fulltext_allowed_licenses.split(",") if part.strip())

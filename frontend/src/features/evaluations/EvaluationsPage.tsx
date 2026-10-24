@@ -4,7 +4,12 @@ import { Card } from '../../components/ui'
 import { useEvaluation, useEvaluations, type Evaluation, type MetricValue } from '../../lib/api/evaluations'
 import { formatDateTime } from '../../lib/format'
 
-const LOWER_IS_BETTER: Record<string, true> = { false_abstention_rate: true, uncited_claim_rate: true }
+const LOWER_IS_BETTER: Record<string, true> = {
+  false_abstention_rate: true,
+  uncited_claim_rate: true,
+  wrong_organism_rate: true,
+  false_resolution_rate: true,
+}
 
 function Metric({ value }: { value: MetricValue | undefined }) {
   if (value === undefined || value === null) return <span className="text-slate-300">—</span>
@@ -144,7 +149,8 @@ export function EvaluationsPage() {
       <header>
         <h1 className="text-2xl font-semibold text-slate-900">Evaluations</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Recorded retrieval and answer-quality runs. Produced by the eval runners in <code>backend/app/evals</code>.
+          Recorded retrieval, answer-quality and entity-resolution runs. Produced by the eval runners in{' '}
+          <code>backend/app/evals</code>.
         </p>
       </header>
       {evaluations.isPending ? (

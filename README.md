@@ -2,7 +2,7 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M07 Quality & Evals.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. An optional LLM reranker, per-stage run timings and opt-in OpenTelemetry tracing are available. Retrieval and answer quality are measured on hand-labelled development and held-out test sets, and results are browsable on the **Evaluations** page (see [Evaluation](#evaluation)).
+> **Status: M08 Entity Intelligence.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. An optional LLM reranker, per-stage run timings and opt-in OpenTelemetry tracing are available. Retrieval and answer quality are measured on hand-labelled development and held-out test sets, and results are browsable on the **Evaluations** page (see [Evaluation](#evaluation)). Genes can be resolved from a symbol or identifier within an explicitly chosen organism (NCBI Gene, UniProtKB, Ensembl) and pinned to a project. Each gene is stored with provenance and typed relations: `encodes` to its proteins and, for human genes, `associated_with_disease` from Open Targets (see [Entity intelligence](#entity-intelligence)).
 >
 > **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
@@ -58,7 +58,7 @@ docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull nomic-
 docker compose -f compose.yaml -f compose.observability.yaml up -d --build --wait   # add the AI/GPU overlays as needed
 ```
 
-`compose.observability.yaml` adds Jaeger (UI at http://localhost:16686) and sets `OTEL_EXPORTER_OTLP_ENDPOINT` for the backend and worker. Spans cover HTTP requests, provider calls (PubMed, Europe PMC), ingestion steps (`ingestion.job/fulltext/embed/verify`) and chat runs (`chat.run`, `chat.retrieval`, `chat.generation`). Spans carry IDs, counts, model names and status codes, never prompt or document text. Without the overlay tracing is off; each run still stores a stage breakdown in `runs.timings`.
+`compose.observability.yaml` adds Jaeger (UI at http://localhost:16686) and sets `OTEL_EXPORTER_OTLP_ENDPOINT` for the backend and worker. Spans cover HTTP requests, provider calls (PubMed, Europe PMC, NCBI Gene, UniProt, Ensembl, Open Targets), ingestion steps (`ingestion.job/fulltext/embed/verify`) and chat runs (`chat.run`, `chat.retrieval`, `chat.generation`). Spans carry IDs, counts, model names and status codes, never prompt or document text. Without the overlay tracing is off; each run still stores a stage breakdown in `runs.timings`.
 
 An Ollama already running on the host works too: plain `compose.yaml` points the backend at `host.docker.internal:11434`. **Settings** in the UI shows which models are pulled and lets each browser pick one.
 
@@ -109,6 +109,10 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `INGESTION_LEASE_S` | `300` | Worker lease; a job whose worker died becomes claimable again after this |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP/HTTP collector for traces (e.g. `http://jaeger:4318`); unset = tracing off |
 | `RAG_TOP_K` | `8` | Most passages placed in a grounded answer's context (fewer if the context window is too small) |
+| `UNIPROT_BASE_URL` / `UNIPROT_REQUESTS_PER_SECOND` | UniProt REST / `5` | Protein entries and gene cross-references |
+| `ENSEMBL_BASE_URL` / `ENSEMBL_REQUESTS_PER_SECOND` | Ensembl REST / `10` | Reciprocal Ensembl ↔ NCBI Gene checks (Ensembl allows 15/s) |
+| `OPENTARGETS_URL` / `OPENTARGETS_REQUESTS_PER_SECOND` | Open Targets GraphQL / `5` | Target–disease associations (human only) |
+| `ENTITY_DISEASE_ASSOCIATIONS` | `10` | Strongest Open Targets associations stored per human gene (0 disables) |
 
 ## Checks
 
@@ -124,7 +128,7 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose stack and smoke-tests the UI, `/api/v1/health` and workspace persistence across a restart through nginx.
 
-Backend tests never call NCBI: they use recorded fixtures and a fake transport. A separate contract test checks the real PubMed API and runs only when you opt in:
+Backend tests never call NCBI or the entity providers: they use recorded fixtures and a fake transport. A separate contract test checks the real PubMed API and runs only when you opt in:
 
 ```bash
 cd backend && RUN_LIVE_TESTS=1 pytest -m live
@@ -137,9 +141,9 @@ cd backend && RUN_LIVE_TESTS=1 pytest -m live
 ```json
 {
   "status": "ok",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0007", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0008", "latency_ms": 1.2 }
 }
 ```
 
@@ -172,7 +176,7 @@ Contract rules:
              "details": [{ "loc": ["body", "title"], "msg": "String should have at least 1 character", "type": "string_too_short" }] } }
 ```
 
-Codes are `validation_error` (422), `not_found` (404), `method_not_allowed` (405), `upstream_unavailable` (502), `upstream_invalid_response` (502), `upstream_timeout` (504) and `internal_error` (500).
+Codes are `validation_error` (422), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `taxon_mismatch` (409), `upstream_unavailable` (502), `upstream_invalid_response` (502), `upstream_timeout` (504) and `internal_error` (500).
 
 ### Literature (PubMed, read-only)
 
@@ -266,7 +270,7 @@ flowchart LR
 |---|---|
 | `POST /api/v1/retrieval/query` | `{project_id, query, mode: keyword\|semantic\|hybrid, top_k, rerank_profile?}` → ranked passages with each retriever's rank, keyword term coverage, similarity, optional rerank grade and whether the hit counts as evidence |
 | `POST /api/v1/chat/{id}/runs` | now also accepts `grounding: auto\|project\|none` (`auto` grounds when the project library has passages), `rerank: bool` and `rerank_profile`; the run records `rerank_profile` and `timings` (retrieval / rerank / generation ms) |
-| `GET /api/v1/evaluations?kind=retrieval\|answers` | Recorded evaluation runs (newest first) with per-configuration headline metrics |
+| `GET /api/v1/evaluations?kind=retrieval\|answers\|entities` | Recorded evaluation runs (newest first) with per-configuration headline metrics |
 | `GET /api/v1/evaluations/{id}` | Full report: dataset hash, commit, per-configuration metrics with CIs, per-item results |
 | `GET /api/v1/runs/{id}/evidence` | Passages given to a grounded run as `[E#]` labels, with ranks and whether the answer cited them |
 | `GET /api/v1/projects/{id}/claims?review_status=&format=json\|csv` | Evidence board: answer sentences with their cited passages; CSV export |
@@ -303,6 +307,37 @@ flowchart LR
 - **Reranking (optional, off by default).** A rerank profile in `model_registry.yaml` (`llm-listwise-small`, `llm-listwise-general`) asks a registry model to grade up to 20 fused candidates 0–3 in one JSON-mode call (`llm-listwise-v1`); passages are fenced as untrusted data. Hits are re-sorted by grade, ties keep RRF order, and the grade is stored as `rerank_score`. If the model fails or returns no usable grades, the fused order is kept and the run shows `Reranking skipped: …`. See [Evaluation](#evaluation) for why it is off.
 - **Identifier validation.** PMIDs, PMCIDs, DOIs and URLs in an answer that do not belong to the run's evidence sources are replaced with `[unverified reference removed]` and counted in `citation_stats.unverified_identifiers`.
 
+### Entity intelligence
+
+| Method & route | Purpose |
+|---|---|
+| `GET /api/v1/entities/organisms` | Organisms offered for resolution (any NCBI Taxonomy ID is accepted) |
+| `POST /api/v1/entities/resolve` | `{query, taxon_id, kind?: auto\|symbol\|ncbigene\|ensembl\|hgnc\|uniprot}` → status, candidate genes, matches in other organisms, warnings, provider releases. Read-only |
+| `GET /api/v1/projects/{id}/entities` | Genes pinned to the project, with the input they were resolved from and import warnings |
+| `POST /api/v1/projects/{id}/entities` | `{gene_id, taxon_id, query?, match_type?}` → import the gene and its relations, then pin it (`201`). Repeating it refreshes the snapshot |
+| `DELETE /api/v1/projects/{id}/entities/{entity_id}` | Unpin; the stored entity stays for other projects |
+| `GET /api/v1/entities/{id}` | Entity with cross-references, attributes, provenance and typed edges in both directions |
+
+```mermaid
+flowchart LR
+    I[symbol or ID + organism] --> R{resolve}
+    R -->|symbol| NG[NCBI Gene: symbol/alias within taxon]
+    R -->|ENSG…| EN[Ensembl xref → NCBI Gene ID]
+    R -->|HGNC:… / UniProt| UP[UniProtKB xref → NCBI Gene ID]
+    NG & EN & UP --> C{organism matches?}
+    C -->|no| M[taxon_mismatch]
+    C -->|yes| S[resolved / ambiguous]
+    S -->|user picks| G[(gene)] -->|encodes| P[(protein: UniProtKB)]
+    G -->|associated_with_disease, human only| D[(disease: Open Targets)]
+```
+
+- **Organism is part of the identity.** A symbol is only searched within the requested taxon: `TP53` in mouse resolves to *Trp53* (NCBI Gene 22059, via its alias), never to human 7157. Identifiers are looked up without an organism filter and then compared, so a human ID requested for mouse is `taxon_mismatch` and the response names the organism it belongs to. Orthologs are never substituted.
+- **Statuses.** `resolved` (one gene), `ambiguous` (several genes share the symbol or alias; all are listed and none is picked), `not_found` (with hints when the symbol is an official symbol in another common organism), `taxon_mismatch`. Exact official-symbol matches outrank alias matches; an alias match says what the official symbol is.
+- **Identifiers.** NCBI Gene IDs are looked up directly; replaced IDs follow NCBI's `currentid` (flagged), discontinued ones are not resolved. Ensembl gene IDs map through Ensembl's EntrezGene cross-references (a version suffix is reported as unchecked). HGNC IDs and UniProt accessions map through reviewed UniProtKB cross-references. An isoform suffix (`P04637-2`) is reported, since resolution is gene-level. Inactive UniProtKB accessions are reported as deleted, or followed to the entry they were merged into (flagged).
+- **Import and provenance.** The gene is re-checked (live, same organism) before anything is stored. Each entity keeps the provider, its data release (NCBI Gene build, UniProt release, Open Targets data version), retrieval time and the raw provider record with its SHA-256. Every cross-reference records who asserted it. Ensembl IDs asserted by UniProt are checked reciprocally against Ensembl; an unconfirmed ID is kept but flagged and never used to query other providers.
+- **Typed relations.** `encodes` (gene → protein) comes from a reviewed UniProtKB entry that cross-references the gene in the same organism. `associated_with_disease` (gene → disease) is an Open Targets association score from 0 to 1, stored with its rank, evidence-type scores and the note that it is not a measure of causality or variant effect. Diseases are normalized to CURIEs (`MONDO:0018875`).
+- **Coverage.** Open Targets covers human targets only, so other organisms get `not_covered` instead of an empty list. If Open Targets is down, the import still succeeds with a warning and keeps the previous association snapshot. NCBI Gene, UniProt and Ensembl failures abort the import (`502`/`504`) and store nothing.
+
 ## Evaluation
 
 ```bash
@@ -317,6 +352,9 @@ python -m app.evals.answers --api http://127.0.0.1:8080/api/v1 --project <projec
 # baseline vs candidate with a paired bootstrap (one report = two configs; two reports = before/after)
 python -m app.evals.compare ../evals/reports/retrieval-test-v0.1.json --baseline hybrid \
   --candidate hybrid+rerank:llm-listwise-general [--fail-on-regression]
+# entities: resolution against the live NCBI Gene / UniProt / Ensembl APIs (no model, no project)
+python -m app.evals.entities --dataset ../evals/datasets/entities-test-v0.1.jsonl \
+  --out ../evals/reports/entities-test-v0.1.json
 ```
 
 Every run is written to a JSON report and to the `evaluations` table (shown on the **Evaluations** page). Each report records the dataset SHA-256 and split, git commit, embedding space, chunker, models and judge. Metrics are means with 95% bootstrap intervals (2,000 resamples, fixed seed). Datasets have a `split` header: `dev` sets may be used for tuning (they set `min_similarity`); `test` sets are only reported. Relevance is declared by quoting passage text, so labels survive re-chunking; a run aborts if a phrase matches no chunk or the corpus differs from the dataset's.
@@ -360,6 +398,24 @@ Caveats:
 - The 2 false abstentions under hybrid (a05, a07) are questions whose answer is spread across passages; the model declared `insufficient_evidence`.
 - Latencies are with models already loaded; the 7B model and the embedding model share 6 GB of VRAM, so the first request after a model swap is much slower.
 
+### Entities
+
+Held-out `entities-test-v0.1`: 45 inputs across 7 organisms (human, mouse, rat, zebrafish, fly, worm, yeast). Expected NCBI Gene IDs were checked against NCBI Gene records and, for non-human genes, independently against Ensembl cross-references, not taken from the resolver. Run against NCBI Gene Build261023-2230m.1, UniProt 2026_03 and Ensembl 116.
+
+| Category | Items | Examples | Correct |
+|---|---|---|---|
+| official symbol | 14 | `TP53`/human → 7157, `cep-1`/worm → 172616, `RAD51`/yeast → 856831 | 14 / 14 |
+| alias | 4 | `TP53`/mouse → Trp53 22059, `HER2` → ERBB2 2064 | 4 / 4 |
+| ambiguous | 2 | `p40` → MAPK1 + TP63, `DEC1` → BHLHE40 + DELEC1, none picked | 2 / 2 |
+| identifier | 10 | `ENSG00000012048`, `HGNC:1100`, `P38398` → BRCA1 672; `P04637-2` → 7157 | 10 / 10 |
+| cross-species | 8 | human 7157 / `ENSG00000141510` / `P04637` requested for mouse → `taxon_mismatch` | 8 / 8 |
+| lifecycle | 3 | replaced 6248 → 84301, mouse 69994 → 68817, discontinued 102724970 | 3 / 3 |
+| not found | 4 | `APOE`/fly (hint: human, mouse, rat), deleted UniProt `Q9ZZZ9` | 4 / 4 |
+
+Accuracy 1.000 (45/45); wrong-organism rate 0.000 and false-resolution rate 0.000 (both must stay 0); p50 / p95 649 / 3,067 ms, bounded by NCBI's 3 requests/s without an API key. The first run found a real defect: inactive UniProtKB entries were rejected as invalid provider responses. They are now handled.
+
+Caveats: 45 hand-picked items cannot show general coverage; they pin down the rules (organism, identifier type, lifecycle). Provider data changes between releases, so a later run can legitimately differ: every report records the releases it ran against.
+
 ## Repository layout
 
 ```text
@@ -368,24 +424,26 @@ backend/
     api/v1/      # routers (HTTP parsing only)
     core/        # settings, JSON logging, request-context middleware, error envelope
     db/          # declarative base, async engine/session
-    models/      # SQLAlchemy models (workspace, literature sources)
+    models/      # SQLAlchemy models (workspace, literature, evidence, retrieval, entities)
     schemas/     # Pydantic API contracts
     services/    # domain operations (projects, conversations, literature, runs)
-    integrations/# external providers: shared rate limit/retry, PubMed + Europe PMC clients, JATS parser
+    integrations/# external providers: shared rate limit/retry, PubMed, Europe PMC, NCBI Gene, UniProt, Ensembl, Open Targets
+    entities/    # entity resolver (organism-explicit), gene import with typed edges and provenance
     ai/          # model registry, gateway adapters + router, versioned prompts, context builder, run executor
     ingestion/   # license policy, chunker, versioned document store, ingestion pipeline
     storage/     # object store (filesystem, content-addressed)
     workers/     # ingestion worker (separate process, DB job queue)
     retrieval/   # embeddings (spaces, batching), hybrid keyword + vector search with RRF, LLM listwise reranker
-    evals/       # metrics with bootstrap CIs, retrieval + answer runners, LLM judge, paired compare, report store
-  alembic/       # migrations (0001 baseline … 0007 quality)
+    evals/       # metrics with bootstrap CIs, retrieval / answer / entity runners, LLM judge, paired compare, report store
+  alembic/       # migrations (0001 baseline … 0008 entities)
   model_registry.yaml
-  tests/         # fixtures: recorded PubMed payloads (abstracts/affiliations replaced), Europe PMC CC BY full text
+  tests/         # fixtures: recorded PubMed payloads (abstracts/affiliations replaced), Europe PMC CC BY full text,
+                 # recorded NCBI Gene / UniProt / Ensembl / Open Targets responses
 frontend/
   src/
     app/         # providers, router, layout
     components/  # shared UI primitives
-    features/    # dashboard, projects, chat, literature, evidence, evaluations, settings
+    features/    # dashboard, projects, chat, literature, evidence, entities, evaluations, settings
     lib/api/     # typed fetch client + Zod response schemas
 compose.yaml       # db, backend, worker, frontend
 compose.ai.yaml    # optional Ollama service
@@ -393,7 +451,7 @@ compose.gpu.yaml   # optional NVIDIA GPU for Ollama
 compose.observability.yaml  # optional Jaeger + OTLP tracing
 .github/workflows/ci.yml
 evals/
-  datasets/        # gold sets (JSONL, dev/test split; relevance by quoted passage text)
+  datasets/        # gold sets (JSONL, dev/test split; relevance by quoted passage text; expected gene IDs)
   reports/         # eval reports with dataset hash, commit, embedding space
 ```
 
@@ -408,7 +466,7 @@ evals/
 | **M05 Evidence Ingestion** ✅ | Durable ingestion worker, license-gated OA full text, versioned documents, section/sentence chunks |
 | **M06 Retrieval / RAG** ✅ | Embeddings, hybrid FTS + vector search (RRF), grounded answers with validated citations, evidence board, retrieval eval |
 | **M07 Quality & Evals** ✅ | Held-out test sets, answer eval with LLM judge, reranker ablation, paired compare, identifier validation, stage timings, OpenTelemetry tracing |
-| M08 Entity Intelligence | UniProt / NCBI / Open Targets, entity resolution |
+| **M08 Entity Intelligence** ✅ | Organism-explicit gene resolution (NCBI Gene, UniProtKB, Ensembl), typed edges with provenance, Open Targets disease associations, species/identifier eval |
 | M09 Security & Multi-user | Auth, ACLs, data isolation, rate limits |
 | M10 Analysis Lab | Object storage, validated job workers |
 | M11 Research Missions | Durable multi-step workflows with approvals and budgets |

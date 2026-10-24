@@ -18,7 +18,7 @@ from app.core.config import Settings
 from app.db.session import create_engine
 from app.main import create_app
 from app.workers.ingestion import IngestionWorker, build_worker
-from tests.fakes import FakeEuropePMC, FakeNCBI, FakeOllama, FakeUpstreams
+from tests.fakes import FakeEntitySources, FakeEuropePMC, FakeNCBI, FakeOllama, FakeUpstreams
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -77,12 +77,13 @@ async def running_app(
     ncbi: FakeNCBI | None = None,
     ollama: FakeOllama | None = None,
     europepmc: FakeEuropePMC | None = None,
+    entities: FakeEntitySources | None = None,
 ) -> AsyncIterator[AsyncClient]:
     """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start.
 
-    Outbound HTTP always goes to fakes: tests never reach NCBI, Europe PMC or a model server.
+    Outbound HTTP always goes to fakes: tests never reach NCBI, Europe PMC, entity providers or a model server.
     """
-    upstreams = FakeUpstreams(ncbi or FakeNCBI(), ollama or FakeOllama(), europepmc)
+    upstreams = FakeUpstreams(ncbi or FakeNCBI(), ollama or FakeOllama(), europepmc, entities)
     app = create_app(settings, http_transport=httpx.MockTransport(upstreams.handle))
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
@@ -106,6 +107,11 @@ def europepmc() -> FakeEuropePMC:
 
 
 @pytest.fixture
+def entity_sources() -> FakeEntitySources:
+    return FakeEntitySources()
+
+
+@pytest.fixture
 def object_store_path(tmp_path: Path) -> Path:
     return tmp_path / "objects"
 
@@ -115,11 +121,20 @@ StartApp = Callable[..., AbstractAsyncContextManager[AsyncClient]]
 
 @pytest.fixture
 def start_app(
-    migrated_database: str, ncbi: FakeNCBI, ollama: FakeOllama, europepmc: FakeEuropePMC, object_store_path: Path
+    migrated_database: str,
+    ncbi: FakeNCBI,
+    ollama: FakeOllama,
+    europepmc: FakeEuropePMC,
+    entity_sources: FakeEntitySources,
+    object_store_path: Path,
 ) -> StartApp:
     """Start an app on the migrated test DB; keyword arguments override settings."""
     return lambda **overrides: running_app(
-        make_settings(migrated_database, object_store_path=object_store_path, **overrides), ncbi, ollama, europepmc
+        make_settings(migrated_database, object_store_path=object_store_path, **overrides),
+        ncbi,
+        ollama,
+        europepmc,
+        entity_sources,
     )
 
 

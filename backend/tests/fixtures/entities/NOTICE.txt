@@ -1,0 +1,21 @@
+Responses recorded from the providers' public APIs on 2026-10-25, unmodified (pretty-printed):
+
+gene_esummary.json
+  NCBI Gene E-utilities esummary (db=gene, retmode=json) for 7157 TP53, 22059 Trp53, 348 APOE, 11816 Apoe,
+  5594 MAPK1, 8626 TP63, 6248 RSC1A1 (replaced by 84301), 84301 DDI2 and 102724970 (discontinued).
+  NCBI data: public domain (https://www.ncbi.nlm.nih.gov/home/about/policies/).
+
+uniprot_entries.json
+  UniProtKB REST search results for P04637, P02340 and P02649 (fields as requested by the client) with the
+  X-UniProt-Release headers. License: CC BY 4.0 (https://www.uniprot.org/help/license).
+
+uniprot_inactive.json
+  UniProtKB REST search result for Q9ZZZ9, an inactive (deleted) entry, same license.
+
+ensembl.json
+  Ensembl REST /xrefs/id (external_db=EntrezGene) for three genes, the 400 answer for an unknown ID and
+  /info/data. Ensembl data is freely available without restriction (https://www.ensembl.org/info/about/legal/).
+
+opentargets_tp53.json
+  Open Targets Platform GraphQL response for ENSG00000141510 (top 5 disease associations).
+  License: CC0 1.0 (https://platform-docs.opentargets.org/licence).

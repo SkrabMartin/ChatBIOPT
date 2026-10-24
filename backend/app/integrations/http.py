@@ -6,6 +6,7 @@ import random
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
+from typing import Any, Literal
 
 import httpx
 
@@ -64,24 +65,35 @@ class RetryPolicy:
         return base / 2 + random.uniform(0, base / 2)  # noqa: S311 - jitter, not cryptography
 
 
-async def get_with_retries(
+async def request_with_retries(
     client: httpx.AsyncClient,
+    method: Literal["GET", "POST"],
     url: str,
     *,
-    params: Mapping[str, str | int],
+    params: Mapping[str, str | int] | None = None,
+    json: Any = None,
+    headers: Mapping[str, str] | None = None,
+    passthrough_statuses: frozenset[int] = frozenset(),
     provider: str,
     limiter: RateLimiter,
     policy: RetryPolicy,
+    operation: str | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> httpx.Response:
-    """GET with rate limiting; retries timeouts, connection errors and transient statuses only."""
+    """Rate-limited request; retries timeouts, connection errors and transient statuses only.
+
+    Only idempotent reads go through here (POST is used for read-only GraphQL queries).
+    `passthrough_statuses` are returned to the caller instead of raising (e.g. a provider's "unknown ID" status).
+    `operation` names the span; default is the last URL segment (pass it when that segment is an identifier).
+    """
     for attempt in range(1, policy.max_attempts + 1):
         await limiter.acquire()
         start = time.perf_counter()
         retry_after: str | None = None
         try:
-            with span(f"{provider} {url.rsplit('/', 1)[-1]}", provider=provider, attempt=attempt) as current:
-                response = await client.get(url, params=params)
+            name = f"{provider} {operation or url.rsplit('/', 1)[-1]}"
+            with span(name, provider=provider, attempt=attempt) as current:
+                response = await client.request(method, url, params=params, json=json, headers=headers)
                 current.set_attribute("http.status_code", response.status_code)
         except httpx.TimeoutException as exc:
             failure: UpstreamError = UpstreamTimeoutError(f"{provider} did not respond in time")
@@ -91,7 +103,7 @@ async def get_with_retries(
             outcome = type(exc).__name__
         else:
             outcome = str(response.status_code)
-            if response.is_success:
+            if response.is_success or response.status_code in passthrough_statuses:
                 logger.info(
                     "upstream request",
                     extra=_log_fields(provider, url, attempt, outcome, start),

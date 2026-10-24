@@ -14,6 +14,7 @@ import {
   type Project,
 } from '../../lib/api/workspace'
 import { formatDateTime, plural } from '../../lib/format'
+import { ProjectEntities } from '../entities/ProjectEntities'
 import { EvidenceLibrary } from '../evidence/EvidenceLibrary'
 import { EvidenceSearch } from '../evidence/EvidenceSearch'
 
@@ -187,6 +188,7 @@ export function ProjectPage() {
         </Link>
       </div>
       <EvidenceSearch projectId={projectId} />
+      <ProjectEntities projectId={projectId} />
       <Conversations projectId={projectId} />
     </div>
   )
