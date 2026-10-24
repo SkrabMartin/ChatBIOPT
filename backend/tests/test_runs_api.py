@@ -284,3 +284,6 @@ async def test_models_report_policy_and_availability(client: AsyncClient) -> Non
     assert "ollama pull qwen2.5:7b" in by_id["local-general"]["unavailable_reason"]
     assert by_id["vllm-general"]["available"] is False
     assert all(m["blocked_reason"] is None for m in body["items"])
+    reranks = {r["id"]: r for r in body["rerank_profiles"]}
+    assert reranks["llm-listwise-general"]["generation_profile"] == "local-general"
+    assert not any(r["is_default"] for r in reranks.values()), "reranking is off by default"

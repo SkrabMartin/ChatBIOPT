@@ -7,6 +7,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.logging import trace_id_var
+from app.core.tracing import span
 
 REQUEST_ID_HEADER = "X-Request-ID"
 _VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
@@ -47,7 +48,11 @@ class RequestContextMiddleware:
             await send(message)
 
         try:
-            await self.app(scope, receive, send_wrapper)
+            with span(
+                f"HTTP {scope['method']}", **{"http.method": scope["method"], "http.target": scope["path"]}
+            ) as current:
+                await self.app(scope, receive, send_wrapper)
+                current.set_attribute("http.status_code", status_code)
         finally:
             logger.info(
                 "request",

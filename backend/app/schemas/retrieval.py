@@ -12,6 +12,8 @@ class RetrievalQuery(BaseModel):
     query: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
     mode: Literal["keyword", "semantic", "hybrid"] = "hybrid"
     top_k: int = Field(default=10, ge=1, le=50)
+    # Rerank the fused candidates with this rerank profile (None: no reranking).
+    rerank_profile: str | None = None
 
 
 class RetrievalHitRead(BaseModel):
@@ -37,6 +39,7 @@ class RetrievalHitRead(BaseModel):
     semantic_rank: int | None
     similarity: float | None
     fused_score: float
+    rerank_score: int | None
     # Would this hit count as evidence for a grounded answer (lexical match or similarity above threshold)?
     counts_as_evidence: bool
 
@@ -48,6 +51,8 @@ class RetrievalResponse(BaseModel):
     embedding_space: str | None
     min_similarity: float | None
     latency_ms: int
+    reranker: str | None
+    rerank_ms: int | None
     warnings: list[str]
     hits: list[RetrievalHitRead]
 

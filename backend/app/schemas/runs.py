@@ -14,6 +14,10 @@ class RunCreate(BaseModel):
     model_profile: str | None = None
     # "auto": ground in the project's evidence library when it has passages, otherwise answer from the model alone.
     grounding: Literal["auto", "project", "none"] = "auto"
+    # Grounded runs only. None: the registry's default_rerank_profile (may be off); False: no reranking;
+    # True: rerank with `rerank_profile` or the registry default.
+    rerank: bool | None = None
+    rerank_profile: str | None = None
 
 
 class RunRead(BaseModel):
@@ -44,6 +48,8 @@ class RunRead(BaseModel):
     embedding_space: str | None
     answer_class: str | None
     citation_stats: dict[str, int] | None
+    rerank_profile: str | None
+    timings: dict[str, int | None] | None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
@@ -59,6 +65,7 @@ class RunEvidenceRead(BaseModel):
     semantic_rank: int | None
     similarity: float | None
     fused_score: float
+    rerank_score: int | None
     chunk_id: uuid.UUID
     text: str
     section: str
@@ -95,7 +102,15 @@ class ModelProfileRead(BaseModel):
     revision: str | None
 
 
+class RerankProfileRead(BaseModel):
+    id: str
+    label: str
+    generation_profile: str
+    is_default: bool
+
+
 class ModelList(BaseModel):
     default_profile: str
     allow_external_models: bool
     items: list[ModelProfileRead]
+    rerank_profiles: list[RerankProfileRead]

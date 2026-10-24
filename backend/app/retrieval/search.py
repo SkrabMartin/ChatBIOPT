@@ -12,11 +12,12 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Protocol
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.gateway.base import GatewayError
 from app.ingestion.chunking import CHUNKER_VERSION
 from app.retrieval.embeddings import EmbeddingSpace, embed_query
 
@@ -101,6 +102,8 @@ class Hit:
     semantic_rank: int | None = None
     similarity: float | None = None
     fused_score: float = 0.0
+    # 0-3 relevance grade from the reranker (None: not reranked or ungraded).
+    rerank_score: int | None = None
     # Filled by `_details`.
     text: str = ""
     section: str = ""
@@ -125,6 +128,15 @@ class Hit:
         return self.similarity is not None and min_similarity is not None and self.similarity >= min_similarity
 
 
+class Reranker(Protocol):
+    """Re-sorts the top candidates; implemented by app.retrieval.rerank.LLMReranker."""
+
+    version: str
+    max_candidates: int
+
+    async def __call__(self, question: str, hits: list[Hit]) -> list[Hit]: ...
+
+
 @dataclass
 class RetrievalResult:
     mode: Mode
@@ -134,6 +146,8 @@ class RetrievalResult:
     latency_ms: int
     # e.g. "semantic retrieval unavailable: ..." when hybrid degraded to keyword-only. Never silent.
     warnings: list[str] = field(default_factory=list)
+    reranker: str | None = None
+    rerank_ms: int | None = None
 
 
 def rrf(rankings: list[list[uuid.UUID]], k: int = RRF_K) -> dict[uuid.UUID, float]:
@@ -153,6 +167,7 @@ async def retrieve(
     top_k: int,
     space: EmbeddingSpace | None,
     space_error: str | None = None,
+    reranker: Reranker | None = None,
 ) -> RetrievalResult:
     """`space` is required for semantic/hybrid; pass `space_error` when it could not be resolved so the degraded
     mode is reported rather than hidden."""
@@ -207,15 +222,34 @@ async def retrieve(
     fused = rrf([r for r in (keyword_ranking, semantic_ranking) if r])
     for chunk_id, score in fused.items():
         hits[chunk_id].fused_score = score
-    ordered = sorted(hits.values(), key=lambda h: (-h.fused_score, str(h.chunk_id)))[:top_k]
-    await _details(session, ordered)
+    ordered = sorted(hits.values(), key=lambda h: (-h.fused_score, str(h.chunk_id)))
+    version = RETRIEVAL_VERSION if effective_mode == "hybrid" else f"{effective_mode}-v1"
+    rerank_ms: int | None = None
+    applied: str | None = None
+    if reranker is not None and len(ordered) > 1:
+        candidates = ordered[: max(top_k, reranker.max_candidates)]
+        await _details(session, candidates)
+        rerank_started = time.perf_counter()
+        try:
+            ordered = await reranker(query, candidates)
+            applied = reranker.version
+            version = f"{version}+{reranker.version}"
+        except GatewayError as exc:
+            # Fused order is still a valid ranking; say that reranking did not happen.
+            warnings.append(f"Reranking skipped: {exc.message}")
+            ordered = candidates
+        rerank_ms = round((time.perf_counter() - rerank_started) * 1000)
+    ordered = ordered[:top_k]
+    await _details(session, [h for h in ordered if not h.text])
     return RetrievalResult(
         mode=effective_mode,
-        version=RETRIEVAL_VERSION if effective_mode == "hybrid" else f"{effective_mode}-v1",
+        version=version,
         embedding_space=space.name if space and effective_mode != "keyword" else None,
         hits=ordered,
         latency_ms=round((time.perf_counter() - started) * 1000),
         warnings=warnings,
+        reranker=applied,
+        rerank_ms=rerank_ms,
     )
 
 

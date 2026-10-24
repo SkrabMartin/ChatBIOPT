@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -15,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -61,6 +63,7 @@ class RunEvidence(Base):
     semantic_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
     similarity: Mapped[float | None] = mapped_column(Float, nullable=True)
     fused_score: Mapped[float] = mapped_column(Float, nullable=False)
+    rerank_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cited: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 
 
@@ -102,3 +105,27 @@ class ClaimEvidence(Base):
     label: Mapped[str] = mapped_column(String(8), nullable=False)
     # What the model asserted by citing; whether the passage really supports the claim is a review question.
     stance: Mapped[str] = mapped_column(String(16), nullable=False, server_default="cited")
+
+
+class Evaluation(Base):
+    """One evaluation run (retrieval or answer quality) with its full report, for comparison over time."""
+
+    __tablename__ = "evaluations"
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint("kind IN ('retrieval', 'answers')", name="kind"),
+        Index("ix_evaluations_kind_created_at", "kind", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    dataset: Mapped[str] = mapped_column(String(128), nullable=False)
+    dataset_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    dataset_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    # dev: used for tuning; test: held out, used only to report.
+    split: Mapped[str] = mapped_column(String(16), nullable=False)
+    git_commit: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Headline numbers per configuration, e.g. {"hybrid": {"ndcg@10": 0.83, ...}}.
+    summary: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    report: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

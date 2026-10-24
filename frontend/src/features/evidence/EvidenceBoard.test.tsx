@@ -78,8 +78,17 @@ describe('EvidenceBoardPage', () => {
 })
 
 describe('EvidenceSearch', () => {
-  it('shows ranks per retriever, degraded-mode warnings and below-threshold hits', async () => {
+  it('shows ranks per retriever, rerank grades and degraded-mode warnings, and sends the chosen reranker', async () => {
     const fetchMock = mockApi({
+      'GET /api/v1/models': () =>
+        jsonResponse({
+          default_profile: 'local-small',
+          allow_external_models: false,
+          items: [],
+          rerank_profiles: [
+            { id: 'llm-listwise-general', label: 'LLM rerank (7B)', generation_profile: 'local-general', is_default: false },
+          ],
+        }),
       'POST /api/v1/retrieval/query': () =>
         jsonResponse({
           query: 'R175H',
@@ -88,6 +97,8 @@ describe('EvidenceSearch', () => {
           embedding_space: null,
           min_similarity: null,
           latency_ms: 12,
+          reranker: 'llm-listwise-v1',
+          rerank_ms: 2100,
           warnings: ['Semantic retrieval unavailable: Model nomic-embed-text is not pulled'],
           hits: [
             {
@@ -112,6 +123,7 @@ describe('EvidenceSearch', () => {
               semantic_rank: null,
               similarity: null,
               fused_score: 0.016,
+              rerank_score: 3,
               counts_as_evidence: true,
             },
           ],
@@ -120,12 +132,17 @@ describe('EvidenceSearch', () => {
     const user = userEvent.setup()
     renderRoute(<EvidenceSearch projectId="p-1" />, { path: '/', url: '/' })
 
+    await user.selectOptions(await screen.findByLabelText('Reranker'), 'llm-listwise-general')
     await user.type(screen.getByLabelText('Evidence query'), 'R175H')
     await user.click(screen.getByRole('button', { name: 'Search' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Semantic retrieval unavailable')
-    expect(screen.getByText(/keyword 1 · semantic –/)).toBeInTheDocument()
-    const body = z.object({ project_id: z.string(), mode: z.string() }).parse(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)))
-    expect(body).toEqual({ project_id: 'p-1', mode: 'hybrid' })
+    expect(screen.getByText(/keyword 1 · semantic –.*rerank 3\/3/)).toBeInTheDocument()
+    expect(screen.getByText(/rerank 2100 ms/)).toBeInTheDocument()
+    const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/retrieval/query'))
+    const body = z
+      .object({ project_id: z.string(), mode: z.string(), rerank_profile: z.string() })
+      .parse(JSON.parse(String(call?.[1]?.body)))
+    expect(body).toEqual({ project_id: 'p-1', mode: 'hybrid', rerank_profile: 'llm-listwise-general' })
   })
 })

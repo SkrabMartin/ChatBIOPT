@@ -24,6 +24,7 @@ const hitSchema = z.object({
   semantic_rank: z.number().nullable(),
   similarity: z.number().nullable(),
   fused_score: z.number(),
+  rerank_score: z.number().nullable(),
   counts_as_evidence: z.boolean(),
 })
 export type RetrievalHit = z.infer<typeof hitSchema>
@@ -37,6 +38,8 @@ const retrievalSchema = z.object({
   embedding_space: z.string().nullable(),
   min_similarity: z.number().nullable(),
   latency_ms: z.number(),
+  reranker: z.string().nullable(),
+  rerank_ms: z.number().nullable(),
   warnings: z.array(z.string()),
   hits: z.array(hitSchema),
 })
@@ -44,9 +47,9 @@ export type RetrievalResult = z.infer<typeof retrievalSchema>
 
 export function useRetrieval(projectId: string) {
   return useMutation({
-    mutationFn: ({ query, mode }: { query: string; mode: RetrievalMode }) =>
+    mutationFn: ({ query, mode, rerankProfile }: { query: string; mode: RetrievalMode; rerankProfile?: string }) =>
       apiRequest('POST', '/retrieval/query', retrievalSchema, {
-        body: { project_id: projectId, query, mode, top_k: 10 },
+        body: { project_id: projectId, query, mode, top_k: 10, ...(rerankProfile ? { rerank_profile: rerankProfile } : {}) },
       }),
   })
 }

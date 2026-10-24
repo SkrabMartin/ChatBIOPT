@@ -1,0 +1,24 @@
+# Optional tracing backend. Use together with the base file:
+#   docker compose -f compose.yaml -f compose.observability.yaml up -d
+# Jaeger UI: http://localhost:16686 (services bioresearch-api and bioresearch-worker).
+# Spans carry ids, model names, counts and timings; never prompt or document text.
+
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${JAEGER_UI_PORT:-16686}:16686"
+    restart: unless-stopped
+
+  backend:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+    depends_on:
+      jaeger:
+        condition: service_started
+
+  worker:
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318

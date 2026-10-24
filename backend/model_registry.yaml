@@ -88,3 +88,19 @@ embedding_profiles:
     batch_size: 32
     license: Apache-2.0
     notes: English-centric; Czech questions retrieve worse than English ones.
+
+# Reranking (M07): an LLM grades the relevance of the top fused candidates and the list is re-sorted by grade.
+# Kept off by default; turn on only when the retrieval eval (evals/) shows a gain worth its latency.
+default_rerank_profile: null
+
+rerank_profiles:
+  llm-listwise-small:
+    label: Listwise LLM reranker (Qwen2.5 1.5B)
+    generation_profile: local-small
+    max_candidates: 20
+    passage_chars: 700
+  llm-listwise-general:
+    label: Listwise LLM reranker (Qwen2.5 7B)
+    generation_profile: local-general
+    max_candidates: 20
+    passage_chars: 700

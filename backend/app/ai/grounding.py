@@ -56,7 +56,55 @@ def _normalize_label(raw: str) -> str:
     return "E" + re.sub(r"\D", "", raw)
 
 
-def parse_answer(raw: str, valid_labels: set[str]) -> ParsedAnswer:
+# Identifiers a model may write outside [E#] markers. Only those belonging to evidence sources are kept.
+_PMID = re.compile(r"\b(?:PMID|PubMed\s*ID)\s*:?\s*(\d{1,9})\b", re.IGNORECASE)
+_PMCID = re.compile(r"\bPMC\d{1,10}\b", re.IGNORECASE)
+_DOI = re.compile(r"\b(?:doi:\s*|https?://(?:dx\.)?doi\.org/)?10\.\d{4,9}/[^\s\]\)\"'<>,;]+", re.IGNORECASE)
+_URL = re.compile(r"\b(?:https?://|www\.)[^\s\]\)\"'<>]+", re.IGNORECASE)
+REDACTED = "[unverified reference removed]"
+
+
+def redact_unverified_identifiers(text: str, allowed_pmids: set[str], allowed_urls: set[str]) -> tuple[str, int]:
+    """Remove PMIDs, PMCIDs, DOIs and URLs that do not belong to this run's evidence sources.
+
+    Publication text can instruct the model to "cite PMID ..." or "visit http://...": the evidence block is
+    untrusted, so the final answer may only name identifiers of sources actually retrieved for this run.
+    """
+    removed = 0
+
+    def check_pmid(match: re.Match[str]) -> str:
+        nonlocal removed
+        if match.group(1) in allowed_pmids:
+            return match.group(0)
+        removed += 1
+        return REDACTED
+
+    def check_url(match: re.Match[str]) -> str:
+        nonlocal removed
+        url = match.group(0).rstrip(".")
+        if url in allowed_urls or url.rstrip("/") in {u.rstrip("/") for u in allowed_urls}:
+            return match.group(0)
+        removed += 1
+        return REDACTED + match.group(0)[len(url) :]
+
+    def drop(match: re.Match[str]) -> str:
+        nonlocal removed
+        removed += 1
+        return REDACTED
+
+    text = _URL.sub(check_url, text)
+    text = _DOI.sub(drop, text)  # source DOIs are not part of the evidence block, so the model cannot know them
+    text = _PMCID.sub(drop, text)
+    text = _PMID.sub(check_pmid, text)
+    return text, removed
+
+
+def parse_answer(
+    raw: str,
+    valid_labels: set[str],
+    allowed_pmids: set[str] | None = None,
+    allowed_urls: set[str] | None = None,
+) -> ParsedAnswer:
     lines = raw.strip().splitlines()
     declared: str | None = None
     if lines and (match := _STATUS.match(lines[0])):
@@ -77,6 +125,7 @@ def parse_answer(raw: str, valid_labels: set[str]) -> ParsedAnswer:
 
     content = _MARKER.sub(keep_valid, body)
     content = re.sub(r"[ \t]+([.,;:])", r"\1", content)  # tidy space left by a removed marker
+    content, unverified = redact_unverified_identifiers(content, allowed_pmids or set(), allowed_urls or set())
 
     claims: list[ClaimDraft] = []
     cited: set[str] = set()
@@ -120,6 +169,7 @@ def parse_answer(raw: str, valid_labels: set[str]) -> ParsedAnswer:
             "invalid_markers": invalid_markers,
             "claims": len(claims),
             "uncited_claims": uncited,
+            "unverified_identifiers": unverified,
         },
     )
 

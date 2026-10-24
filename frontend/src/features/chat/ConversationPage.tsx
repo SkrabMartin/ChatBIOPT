@@ -75,6 +75,23 @@ function RunDetails({ runId }: { runId: string }) {
               </dd>
             </>
           ) : null}
+          {run.data.rerank_profile ? (
+            <>
+              <dt>Reranker</dt>
+              <dd className="font-mono">{run.data.rerank_profile}</dd>
+            </>
+          ) : null}
+          {run.data.timings ? (
+            <>
+              <dt>Stages</dt>
+              <dd>
+                {(['retrieval_ms', 'rerank_ms', 'generation_ms'] as const)
+                  .filter((k) => run.data.timings?.[k] != null)
+                  .map((k) => `${k.replace('_ms', '')} ${run.data.timings?.[k]} ms`)
+                  .join(' · ')}
+              </dd>
+            </>
+          ) : null}
           <dt>Run</dt>
           <dd className="font-mono">{run.data.id}</dd>
         </dl>

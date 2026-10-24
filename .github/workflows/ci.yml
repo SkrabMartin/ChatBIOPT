@@ -87,6 +87,11 @@ jobs:
           docker compose up -d --wait --wait-timeout 180
           test "$(curl -fsS $api/projects/$project | jq -r .title)" = "CI smoke"
           test "$(curl -fsS $api/conversations/$conversation/messages | jq -r '.items[0].content')" = "persist me"
+      - name: UI keeps working when only the backend container is recreated
+        run: |
+          docker compose up -d --force-recreate --no-deps --wait backend
+          sleep 12  # longer than nginx's DNS cache (valid=10s)
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | grep -q '"status":"ok"'
       - name: Logs on failure
         if: failure()
         run: docker compose logs

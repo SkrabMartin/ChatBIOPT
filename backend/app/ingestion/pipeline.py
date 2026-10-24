@@ -19,6 +19,7 @@ from sqlalchemy.orm import aliased
 from app.ai.gateway.base import GatewayError
 from app.ai.gateway.router import ModelRouter
 from app.core.errors import AppError, NotFoundError
+from app.core.tracing import span
 from app.ingestion.chunking import CHUNKER_VERSION, Section
 from app.ingestion.documents import DocumentInput, store_document
 from app.ingestion.licensing import decide_full_text, normalize_license
@@ -159,7 +160,8 @@ class IngestionPipeline:
 
         # 4. full text (license-gated)
         if allowed and info.pmcid:
-            await self._full_text(session, source, info.pmcid, decision.license, log)
+            with span("ingestion.fulltext", pmcid=info.pmcid):
+                await self._full_text(session, source, info.pmcid, decision.license, log)
         else:
             log.add(
                 "fulltext",
@@ -169,11 +171,13 @@ class IngestionPipeline:
         await checkpoint()
 
         # 5. embed chunks of the latest versions into the current embedding space
-        await self._embed(session, source_id, log)
+        with span("ingestion.embed"):
+            await self._embed(session, source_id, log)
         await checkpoint()
 
         # 6. verify what is stored
-        await self._verify(session, source_id, log)
+        with span("ingestion.verify"):
+            await self._verify(session, source_id, log)
         await checkpoint()
         return log
 

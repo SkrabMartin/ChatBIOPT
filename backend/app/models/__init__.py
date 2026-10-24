@@ -2,7 +2,7 @@
 
 from app.models.evidence import Chunk, Document, IngestionJob, ProjectSource
 from app.models.literature import LiteratureSearch, Source, SourceIdentifier
-from app.models.retrieval import ChunkEmbedding, Claim, ClaimEvidence, RunEvidence
+from app.models.retrieval import ChunkEmbedding, Claim, ClaimEvidence, Evaluation, RunEvidence
 from app.models.runs import Run
 from app.models.workspace import Conversation, Message, Project
 
@@ -13,6 +13,7 @@ __all__ = [
     "ClaimEvidence",
     "Conversation",
     "Document",
+    "Evaluation",
     "IngestionJob",
     "LiteratureSearch",
     "Message",

@@ -66,6 +66,7 @@ class OpenAICompatibleGateway:
             "stream_options": {"include_usage": True},
             "temperature": request.temperature,
             "max_tokens": request.max_output_tokens,
+            **({"response_format": {"type": "json_object"}} if request.json_output else {}),
         }
         finish_reason: str | None = None
         usage: dict[str, Any] = {}

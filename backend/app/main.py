@@ -16,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.tracing import configure_tracing
 from app.db.session import create_engine
 from app.integrations.pubmed.client import PubMedClient
 from app.services.runs import recover_interrupted_runs
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
     """`http_transport` replaces the network for outbound provider/model calls (tests use `httpx.MockTransport`)."""
     settings = settings or get_settings()
     configure_logging(settings.log_level)
+    configure_tracing("bioresearch-api", settings.otel_exporter_otlp_endpoint)
     registry = load_registry(settings.model_registry_path)
 
     @asynccontextmanager

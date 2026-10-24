@@ -42,6 +42,8 @@ function run(overrides: Partial<Run> = {}): Run {
     embedding_space: null,
     answer_class: null,
     citation_stats: null,
+    rerank_profile: null,
+    timings: null,
     created_at: now,
     started_at: null,
     finished_at: null,
@@ -57,6 +59,7 @@ function sse(...events: [number, string, unknown][]): Response {
 const models = {
   default_profile: 'local-small',
   allow_external_models: false,
+  rerank_profiles: [],
   items: [],
 }
 
@@ -187,6 +190,7 @@ describe('ConversationPage', () => {
         semantic_rank: 2,
         similarity: 0.71,
         fused_score: 0.03,
+        rerank_score: null,
         chunk_id: 'ch-1',
         text: 'Two mutations, R110C and R175H, were identified, each in distinct clones.',
         section: 'results',

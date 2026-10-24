@@ -59,6 +59,7 @@ class OllamaGateway:
             "model": self._model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
             "stream": True,
+            **({"format": "json"} if request.json_output else {}),
             "options": {
                 "temperature": request.temperature,
                 "num_predict": request.max_output_tokens,

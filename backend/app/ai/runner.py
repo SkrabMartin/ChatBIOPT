@@ -33,8 +33,10 @@ from app.ai.prompts.research_assistant import GROUNDED_SYSTEM_PROMPT
 from app.ai.registry import ModelProfile
 from app.core.errors import AppError
 from app.core.logging import trace_id_var
+from app.core.tracing import span
 from app.models import Claim, ClaimEvidence, Conversation, Message, ProjectSource, Run, RunEvidence
 from app.retrieval.embeddings import EmbeddingSpace, resolve_space
+from app.retrieval.rerank import resolve_reranker
 from app.retrieval.search import Hit, RetrievalResult, retrieve
 from app.schemas.runs import RunRead
 from app.schemas.workspace import MessageRead
@@ -148,7 +150,8 @@ class RunManager:
         started = time.perf_counter()
         try:
             async with asyncio.timeout(self._max_duration_s):
-                await self._generate(run_id, channel, started)
+                with span("chat.run", run_id=str(run_id)):
+                    await self._generate(run_id, channel, started)
         except GatewayError as exc:
             await self._fail(run_id, channel, started, exc.code, exc.message)
         except AppError as exc:
@@ -187,13 +190,16 @@ class RunManager:
             conversation_id = run.conversation_id
             grounded = run.grounding == "project"
             evidence: list[Hit] = []
+            timings: dict[str, Any] = {}
             if grounded:
                 project_id = await session.scalar(
                     select(Conversation.project_id).where(Conversation.id == conversation_id)
                 )
                 assert project_id is not None
                 await channel.publish("status", {"status": "retrieving"})
-                retrieval, min_similarity = await self._retrieve(session, project_id, history[-1].content)
+                retrieval, min_similarity = await self._retrieve(
+                    session, project_id, history[-1].content, run.rerank_profile, timings
+                )
                 evidence = [h for h in retrieval.hits if h.is_evidence(min_similarity)][: self._rag_top_k]
                 run.retrieval_version = retrieval.version
                 run.embedding_space = retrieval.embedding_space
@@ -215,6 +221,7 @@ class RunManager:
                         insufficient_evidence_message(sources or 0, retrieval.warnings),
                         answer_class="insufficient_evidence",
                         citation_stats={"evidence": 0, "claims": 0},
+                        timings=timings,
                     )
                     return
 
@@ -243,14 +250,20 @@ class RunManager:
             max_output_tokens=profile.max_output_tokens,
             context_window=profile.context_window,
         )
-        async for event in gateway.stream(request):
-            if isinstance(event, TextDelta):
-                if first_token_ms is None:
-                    first_token_ms = _ms_since(started)
-                parts.append(event.text)
-                await channel.publish("delta", {"text": event.text})
-            else:
-                end = event
+        generation_started = time.perf_counter()
+        with span("chat.generation", model=profile.model, grounded=grounded) as generation_span:
+            async for event in gateway.stream(request):
+                if isinstance(event, TextDelta):
+                    if first_token_ms is None:
+                        first_token_ms = _ms_since(started)
+                    parts.append(event.text)
+                    await channel.publish("delta", {"text": event.text})
+                else:
+                    end = event
+            if end is not None:
+                generation_span.set_attribute("tokens.input", end.input_tokens or 0)
+                generation_span.set_attribute("tokens.output", end.output_tokens or 0)
+        timings["generation_ms"] = _ms_since(generation_started)
         content = "".join(parts)
         if end is None or not content.strip():
             # Never store or show an empty/partial answer as if it were a response.
@@ -262,12 +275,18 @@ class RunManager:
             "estimated_cost_usd": profile.estimate_cost_usd(end.input_tokens, end.output_tokens),
             "time_to_first_token_ms": first_token_ms,
             "finish_reason": end.finish_reason,
+            "timings": timings,
         }
         if not grounded:
             await self._complete(run_id, conversation_id, channel, started, content, **usage)
         else:
             labels = {label(i): hit for i, hit in enumerate(evidence)}
-            parsed = parse_answer(content, set(labels))
+            parsed = parse_answer(
+                content,
+                set(labels),
+                allowed_pmids={hit.external_id for hit in evidence},
+                allowed_urls={hit.source_url for hit in evidence},
+            )
             await self._complete(
                 run_id,
                 conversation_id,
@@ -294,7 +313,12 @@ class RunManager:
         )
 
     async def _retrieve(
-        self, session: AsyncSession, project_id: uuid.UUID, question: str
+        self,
+        session: AsyncSession,
+        project_id: uuid.UUID,
+        question: str,
+        rerank_profile: str | None,
+        timings: dict[str, Any],
     ) -> tuple[RetrievalResult, float | None]:
         space: EmbeddingSpace | None = None
         space_error: str | None = None
@@ -302,19 +326,31 @@ class RunManager:
             space = await resolve_space(self._router)
         except (GatewayError, AppError) as exc:
             space_error = str(exc)
+        reranker = resolve_reranker(self._router, rerank_profile) if rerank_profile else None
         try:
-            result = await retrieve(
-                session,
-                project_id,
-                question,
-                mode="hybrid",
-                top_k=self._rag_top_k * 3,
-                space=space,
-                space_error=space_error,
-            )
+            with span("chat.retrieval", rerank_profile=rerank_profile) as retrieval_span:
+                result = await retrieve(
+                    session,
+                    project_id,
+                    question,
+                    mode="hybrid",
+                    top_k=self._rag_top_k * 3,
+                    space=space,
+                    space_error=space_error,
+                    reranker=reranker,
+                )
+                retrieval_span.set_attribute("hits", len(result.hits))
         except (SQLAlchemyError, GatewayError) as exc:
             # A retrieval failure is a tool error, never "no evidence".
             raise RetrievalFailedError(f"Evidence retrieval failed: {exc}") from exc
+        timings["retrieval_ms"] = result.latency_ms
+        if result.rerank_ms is not None and reranker is not None:
+            timings.update(
+                rerank_ms=result.rerank_ms,
+                rerank_graded=reranker.last_graded,
+                rerank_input_tokens=reranker.last_input_tokens,
+                rerank_output_tokens=reranker.last_output_tokens,
+            )
         return result, space.profile.min_similarity if space else None
 
     def _grounded_context(
@@ -363,6 +399,7 @@ class RunManager:
                         semantic_rank=hit.semantic_rank,
                         similarity=hit.similarity,
                         fused_score=hit.fused_score,
+                        rerank_score=hit.rerank_score,
                         cited=lab in cited,
                     )
                     for index, (lab, hit) in enumerate(evidence.items())

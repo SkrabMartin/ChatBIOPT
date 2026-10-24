@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -118,6 +119,8 @@ class FakeOllama:
         self.hold: asyncio.Event | None = None
         self.first_chunk_sent = asyncio.Event()
         self.chat_payloads: list[dict[str, object]] = []
+        # Optional per-request responder: payload -> chunks (overrides `chunks`).
+        self.reply: Callable[[dict[str, Any]], list[str]] | None = None
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         if not self.reachable:
@@ -132,7 +135,8 @@ class FakeOllama:
                 return httpx.Response(404, json={"error": f"model '{payload['model']}' not found"})
             if self.http_status != 200:
                 return httpx.Response(self.http_status, json={"error": "boom"})
-            return httpx.Response(200, content=self._stream(), headers={"Content-Type": "application/x-ndjson"})
+            chunks = self.reply(payload) if self.reply else self.chunks
+            return httpx.Response(200, content=self._stream(chunks), headers={"Content-Type": "application/x-ndjson"})
         if request.url.path == "/api/embed":
             payload = json.loads(request.content)
             if payload["model"] not in self.pulled:
@@ -143,18 +147,18 @@ class FakeOllama:
             return httpx.Response(200, json={"embeddings": [fake_embedding(text) for text in payload["input"]]})
         return httpx.Response(404)
 
-    async def _stream(self) -> AsyncIterator[bytes]:
+    async def _stream(self, chunks: list[str]) -> AsyncIterator[bytes]:
         if self.raw_lines is not None:
             for line in self.raw_lines:
                 yield (line + "\n").encode()
             return
-        for index, text in enumerate(self.chunks):
+        for index, text in enumerate(chunks):
             yield (json.dumps({"message": {"role": "assistant", "content": text}, "done": False}) + "\n").encode()
             if index == 0:
                 self.first_chunk_sent.set()
                 if self.hold is not None:
                     await self.hold.wait()
-        done = {"done": True, "done_reason": "stop", "prompt_eval_count": 42, "eval_count": len(self.chunks)}
+        done = {"done": True, "done_reason": "stop", "prompt_eval_count": 42, "eval_count": len(chunks)}
         yield (json.dumps(done) + "\n").encode()
 
 

@@ -6,25 +6,31 @@ from sqlalchemy import exists, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.gateway.router import ModelRouter
+from app.ai.gateway.router import ModelRouter, UnknownModelProfileError
 from app.ai.prompts.research_assistant import (
     GROUNDED_PROMPT_VERSION,
     GROUNDED_SYSTEM_PROMPT,
     PROMPT_VERSION,
     SYSTEM_PROMPT,
 )
-from app.ai.registry import EmbeddingProfile, ModelProfile
+from app.ai.registry import EmbeddingProfile, ModelProfile, RerankProfile
 from app.ai.runner import RunManager
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.core.logging import trace_id_var
 from app.ingestion.chunking import CHUNKER_VERSION
 from app.models import Chunk, Conversation, Document, Message, ProjectSource, Run, RunEvidence, Source
 from app.models.runs import ACTIVE_RUN_STATUSES
+from app.retrieval.rerank import RERANK_VERSION
 from app.retrieval.search import RETRIEVAL_VERSION
 from app.schemas.runs import RunCreate, RunEvidenceRead, RunRead
 
 
-def config_hash(profile: ModelProfile, grounding: str, embedding_profile: EmbeddingProfile | None = None) -> str:
+def config_hash(
+    profile: ModelProfile,
+    grounding: str,
+    embedding_profile: EmbeddingProfile | None = None,
+    rerank_profile: RerankProfile | None = None,
+) -> str:
     """Fingerprint of everything that shapes the output besides the conversation itself."""
     grounded = grounding == "project"
     prompt = GROUNDED_SYSTEM_PROMPT if grounded else SYSTEM_PROMPT
@@ -41,6 +47,8 @@ def config_hash(profile: ModelProfile, grounding: str, embedding_profile: Embedd
             "embedding_profile": embedding_profile.model_dump(exclude={"label", "notes"})
             if embedding_profile
             else None,
+            "rerank_profile": rerank_profile.model_dump(exclude={"label", "notes"}) if rerank_profile else None,
+            "rerank_version": RERANK_VERSION if rerank_profile else None,
         }
     return hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
 
@@ -64,8 +72,11 @@ class RunService:
             raise ForbiddenError(reason)
         grounding = await self._resolve_grounding(conversation_id, data.grounding)
         embedding_profile = None
-        if grounding == "project" and self.router.registry.default_embedding_profile:
-            embedding_profile = self.router.embedding_profile()
+        rerank_profile = None
+        if grounding == "project":
+            if self.router.registry.default_embedding_profile:
+                embedding_profile = self.router.embedding_profile()
+            rerank_profile = self._rerank_profile(data)
 
         run = Run(
             conversation_id=conversation_id,
@@ -75,7 +86,8 @@ class RunService:
             provider=profile.provider,
             model_id=profile.model,
             prompt_version=GROUNDED_PROMPT_VERSION if grounding == "project" else PROMPT_VERSION,
-            config_hash=config_hash(profile, grounding, embedding_profile),
+            config_hash=config_hash(profile, grounding, embedding_profile, rerank_profile),
+            rerank_profile=rerank_profile.id if rerank_profile else None,
             context_until_sequence=last.sequence,
             grounding=grounding,
             trace_id=trace_id_var.get(),
@@ -88,6 +100,22 @@ class RunService:
             raise ConflictError("A response is already being generated for this conversation") from exc
         self.manager.start(run.id)
         return RunRead.model_validate(run)
+
+    def _rerank_profile(self, data: RunCreate) -> RerankProfile | None:
+        registry = self.router.registry
+        if data.rerank is False:
+            return None
+        key = data.rerank_profile or registry.default_rerank_profile
+        if key is None:
+            if data.rerank:
+                raise UnknownModelProfileError("Reranking requested but no rerank profile is configured")
+            return None
+        rerank = registry.rerank_profiles.get(key)
+        if rerank is None:
+            raise UnknownModelProfileError(f"Unknown rerank profile {key!r}")
+        if (reason := self.router.policy_block_reason(self.router.profile(rerank.generation_profile))) is not None:
+            raise ForbiddenError(f"Reranker model blocked: {reason}")
+        return rerank
 
     async def _resolve_grounding(self, conversation_id: uuid.UUID, requested: str) -> str:
         """`auto` grounds in the project's library when it has any chunks; otherwise answers ungrounded."""
@@ -125,6 +153,7 @@ class RunService:
                 semantic_rank=ev.semantic_rank,
                 similarity=ev.similarity,
                 fused_score=ev.fused_score,
+                rerank_score=ev.rerank_score,
                 chunk_id=chunk.id,
                 text=chunk.text,
                 section=chunk.section,

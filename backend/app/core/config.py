@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Grounded answers (M06): passages placed in the model's context at most.
     rag_top_k: int = Field(default=8, ge=1, le=30)
 
+    # Tracing (M07): OTLP/HTTP collector base URL, e.g. http://jaeger:4318. Unset = tracing off.
+    otel_exporter_otlp_endpoint: str | None = None
+
     # Evidence ingestion (M05).
     europepmc_base_url: str = "https://www.ebi.ac.uk/europepmc/webservices/rest"
     europepmc_requests_per_second: float = Field(default=5.0, gt=0, le=20)

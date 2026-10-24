@@ -20,6 +20,8 @@ class GenerationRequest:
     temperature: float
     max_output_tokens: int
     context_window: int
+    # Ask the server to constrain output to a JSON object (Ollama `format`, OpenAI `response_format`).
+    json_output: bool = False
 
 
 @dataclass(frozen=True)
@@ -84,3 +86,17 @@ def check_vectors(vectors: object, expected_count: int, dimensions: int) -> list
             raise GatewayError("model_error", "Embedding contains non-finite values")
         checked.append(values)
     return checked
+
+
+async def complete(gateway: "ModelGateway", request: GenerationRequest) -> tuple[str, StreamEnd]:
+    """Collect a whole (non-user-facing) completion, e.g. for reranking or judging."""
+    parts: list[str] = []
+    end: StreamEnd | None = None
+    async for event in gateway.stream(request):
+        if isinstance(event, TextDelta):
+            parts.append(event.text)
+        else:
+            end = event
+    if end is None:
+        raise GatewayError("model_error", "The model stream ended without completion")
+    return "".join(parts), end

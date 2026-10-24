@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.errors import UpstreamError, UpstreamTimeoutError
+from app.core.tracing import span
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,9 @@ async def get_with_retries(
         start = time.perf_counter()
         retry_after: str | None = None
         try:
-            response = await client.get(url, params=params)
+            with span(f"{provider} {url.rsplit('/', 1)[-1]}", provider=provider, attempt=attempt) as current:
+                response = await client.get(url, params=params)
+                current.set_attribute("http.status_code", response.status_code)
         except httpx.TimeoutException as exc:
             failure: UpstreamError = UpstreamTimeoutError(f"{provider} did not respond in time")
             outcome = type(exc).__name__

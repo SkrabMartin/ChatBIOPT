@@ -2,7 +2,7 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M06 Retrieval / RAG.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. Retrieval quality is measured on a small hand-labelled development set (see [Evaluation](#evaluation)).
+> **Status: M07 Quality & Evals.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. An optional LLM reranker, per-stage run timings and opt-in OpenTelemetry tracing are available. Retrieval and answer quality are measured on hand-labelled development and held-out test sets, and results are browsable on the **Evaluations** page (see [Evaluation](#evaluation)).
 >
 > **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
@@ -52,6 +52,14 @@ docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull qwen2.
 docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull nomic-embed-text     # embeddings for retrieval
 ```
 
+### Tracing (optional)
+
+```bash
+docker compose -f compose.yaml -f compose.observability.yaml up -d --build --wait   # add the AI/GPU overlays as needed
+```
+
+`compose.observability.yaml` adds Jaeger (UI at http://localhost:16686) and sets `OTEL_EXPORTER_OTLP_ENDPOINT` for the backend and worker. Spans cover HTTP requests, provider calls (PubMed, Europe PMC), ingestion steps (`ingestion.job/fulltext/embed/verify`) and chat runs (`chat.run`, `chat.retrieval`, `chat.generation`). Spans carry IDs, counts, model names and status codes, never prompt or document text. Without the overlay tracing is off; each run still stores a stage breakdown in `runs.timings`.
+
 An Ollama already running on the host works too: plain `compose.yaml` points the backend at `host.docker.internal:11434`. **Settings** in the UI shows which models are pulled and lets each browser pick one.
 
 ## Local development
@@ -99,6 +107,7 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `INGESTION_MAX_ATTEMPTS` | `3` | Attempts per ingestion job for transient provider failures |
 | `INGESTION_RETRY_DELAY_S` | `30` | Base delay before a retry (multiplied by the attempt number) |
 | `INGESTION_LEASE_S` | `300` | Worker lease; a job whose worker died becomes claimable again after this |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP/HTTP collector for traces (e.g. `http://jaeger:4318`); unset = tracing off |
 | `RAG_TOP_K` | `8` | Most passages placed in a grounded answer's context (fewer if the context window is too small) |
 
 ## Checks
@@ -128,9 +137,9 @@ cd backend && RUN_LIVE_TESTS=1 pytest -m live
 ```json
 {
   "status": "ok",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0006", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0007", "latency_ms": 1.2 }
 }
 ```
 
@@ -255,8 +264,10 @@ flowchart LR
 
 | Method & route | Purpose |
 |---|---|
-| `POST /api/v1/retrieval/query` | `{project_id, query, mode: keyword\|semantic\|hybrid, top_k}` → ranked passages with each retriever's rank, keyword term coverage, similarity and whether the hit counts as evidence |
-| `POST /api/v1/chat/{id}/runs` | now also accepts `grounding: auto\|project\|none` (`auto` grounds when the project library has passages) |
+| `POST /api/v1/retrieval/query` | `{project_id, query, mode: keyword\|semantic\|hybrid, top_k, rerank_profile?}` → ranked passages with each retriever's rank, keyword term coverage, similarity, optional rerank grade and whether the hit counts as evidence |
+| `POST /api/v1/chat/{id}/runs` | now also accepts `grounding: auto\|project\|none` (`auto` grounds when the project library has passages), `rerank: bool` and `rerank_profile`; the run records `rerank_profile` and `timings` (retrieval / rerank / generation ms) |
+| `GET /api/v1/evaluations?kind=retrieval\|answers` | Recorded evaluation runs (newest first) with per-configuration headline metrics |
+| `GET /api/v1/evaluations/{id}` | Full report: dataset hash, commit, per-configuration metrics with CIs, per-item results |
 | `GET /api/v1/runs/{id}/evidence` | Passages given to a grounded run as `[E#]` labels, with ranks and whether the answer cited them |
 | `GET /api/v1/projects/{id}/claims?review_status=&format=json\|csv` | Evidence board: answer sentences with their cited passages; CSV export |
 | `PATCH /api/v1/claims/{id}` | `{review_status: requires_review\|verified\|disputed\|rejected, review_note?}` |
@@ -288,35 +299,66 @@ flowchart LR
   - `unclassified`: no valid citation at all.
   - `tool_error`: retrieval itself failed. This is a failed run with error code `tool_error`, never reported as "no evidence".
 - **What a citation means.** A valid citation only shows which passage the model pointed at, not that the passage supports the sentence. Every claim starts as `requires_review` on the **evidence board**, where you can verify, dispute or reject it.
-- **Reproducibility.** Each run also records `grounding`, `retrieval_version`, `embedding_space`, `answer_class`, `citation_stats`, the ranked passages it was given (`run_evidence`) and its claims. The config hash covers the grounded prompt, the chunker and the embedding profile.
+- **Reproducibility.** Each run also records `grounding`, `retrieval_version`, `embedding_space`, `answer_class`, `citation_stats`, the ranked passages it was given (`run_evidence`) and its claims. The config hash covers the grounded prompt, the chunker, the embedding profile and the rerank profile. `runs.timings` holds per-stage milliseconds (`retrieval_ms`, `rerank_ms`, `generation_ms`) and rerank token usage.
+- **Reranking (optional, off by default).** A rerank profile in `model_registry.yaml` (`llm-listwise-small`, `llm-listwise-general`) asks a registry model to grade up to 20 fused candidates 0–3 in one JSON-mode call (`llm-listwise-v1`); passages are fenced as untrusted data. Hits are re-sorted by grade, ties keep RRF order, and the grade is stored as `rerank_score`. If the model fails or returns no usable grades, the fused order is kept and the run shows `Reranking skipped: …`. See [Evaluation](#evaluation) for why it is off.
+- **Identifier validation.** PMIDs, PMCIDs, DOIs and URLs in an answer that do not belong to the run's evidence sources are replaced with `[unverified reference removed]` and counted in `citation_stats.unverified_identifiers`.
 
 ## Evaluation
 
 ```bash
 cd backend
-python -m app.evals.retrieval --project <project-id> \
-  --dataset ../evals/datasets/retrieval-dev-v0.1.jsonl --out ../evals/reports/retrieval-dev-v0.1.json
+# retrieval: keyword vs semantic vs hybrid vs hybrid + reranker (direct DB access)
+python -m app.evals.retrieval --project <project-id> --dataset ../evals/datasets/retrieval-test-v0.1.jsonl \
+  --rerank llm-listwise-small --rerank llm-listwise-general --out ../evals/reports/retrieval-test-v0.1.json
+# answers: no-RAG vs grounded vs grounded + reranker, through the real API, scored by an LLM judge
+python -m app.evals.answers --api http://127.0.0.1:8080/api/v1 --project <project-id> \
+  --dataset ../evals/datasets/answers-test-v0.1.jsonl --model local-general --judge local-general \
+  --rerank llm-listwise-general --out ../evals/reports/answers-test-v0.1.json
+# baseline vs candidate with a paired bootstrap (one report = two configs; two reports = before/after)
+python -m app.evals.compare ../evals/reports/retrieval-test-v0.1.json --baseline hybrid \
+  --candidate hybrid+rerank:llm-listwise-general [--fail-on-regression]
 ```
 
-The runner compares keyword, semantic and hybrid retrieval on the same queries (top 10). It reports recall@5, recall@10, MRR@10 and nDCG@10 with graded relevance, 95% bootstrap confidence intervals (2,000 resamples, fixed seed), p50/p95 latency and a per-query breakdown. Each report records the dataset SHA-256, git commit, embedding space and chunker version.
+Every run is written to a JSON report and to the `evaluations` table (shown on the **Evaluations** page). Each report records the dataset SHA-256 and split, git commit, embedding space, chunker, models and judge. Metrics are means with 95% bootstrap intervals (2,000 resamples, fixed seed). Datasets have a `split` header: `dev` sets may be used for tuning (they set `min_similarity`); `test` sets are only reported. Relevance is declared by quoting passage text, so labels survive re-chunking; a run aborts if a phrase matches no chunk or the corpus differs from the dataset's.
 
-Relevance is declared by quoting passage text (`contains`), not by chunk IDs, so labels survive re-chunking. The run aborts if a phrase matches no chunk, if the project's corpus differs from the dataset's, or if any chunk lacks an embedding.
+`compare` pairs items by ID and calls a metric *improved* or *regressed* only when the 95% CI of the paired difference excludes zero.
 
-Results for `retrieval-dev-v0.1`: 24 hand-labelled queries over 3 TP53/glioma papers (79 chunks), `nomic-embed-text`, chunker `section-sentence-v1`. The full report is in `evals/reports/retrieval-dev-v0.1.json`.
+All numbers below are for 3 TP53/glioma papers (79 chunks), `nomic-embed-text`, chunker `section-sentence-v1`, labelled by one annotator, on an RTX 3050 6 GB.
 
-| Mode | recall@5 | recall@10 | MRR@10 | nDCG@10 | p50 / p95 ms |
+### Retrieval
+
+Held-out `retrieval-test-v0.1` (20 queries); development set `retrieval-dev-v0.1` (24 queries) in parentheses for nDCG.
+
+| Mode | recall@5 | recall@10 | MRR@10 | nDCG@10 (dev) | p50 / p95 ms |
 |---|---|---|---|---|---|
-| keyword | 0.802 [0.67–0.93] | 0.878 [0.76–0.96] | 0.704 [0.57–0.84] | 0.692 [0.58–0.81] | 4 / 8 |
-| semantic | 0.767 [0.62–0.90] | 0.837 [0.72–0.93] | 0.821 [0.68–0.94] | 0.762 [0.63–0.88] | 48 / 101 |
-| hybrid | 0.851 [0.75–0.94] | 0.976 [0.94–1.00] | 0.872 [0.76–0.96] | 0.832 [0.75–0.91] | 32 / 40 |
+| keyword | 0.867 [0.73–0.97] | 0.900 [0.78–1.00] | 0.796 [0.64–0.93] | 0.753 (0.692) | 3 / 8 |
+| semantic | 0.817 [0.69–0.93] | 0.933 [0.85–1.00] | 0.738 [0.59–0.88] | 0.732 (0.762) | 34 / 45 |
+| **hybrid** (default) | 0.933 [0.85–1.00] | 1.000 [1.00–1.00] | 0.838 [0.72–0.95] | 0.835 (0.832) | 29 / 44 |
+| hybrid + rerank `llm-listwise-small` (1.5B) | 0.733 [0.56–0.88] | 0.800 [0.62–0.93] | 0.716 [0.53–0.88] | 0.652 (0.685) | 3,146 / 5,110 |
+| hybrid + rerank `llm-listwise-general` (7B) | 0.850 [0.70–0.97] | 0.975 [0.93–1.00] | 0.851 [0.71–0.96] | 0.839 (0.817) | 20,809 / 21,480 |
 
-Latencies are measured with the embedding model already loaded; loading it cold adds about 3 s to the first semantic query.
+### Answers
 
-These results come with caveats:
+Held-out `answers-test-v0.1`: 8 answerable questions, 5 unanswerable from this corpus, 3 prompt-injection probes. Answers by `local-general` (qwen2.5:7b), judged by `llm-judge-v1` on the same model.
 
-- This is a small **development** set. It was labelled by one annotator, it was used to set `min_similarity`, and it is not held out, so treat the numbers as a sanity check and a regression baseline, not as a general quality claim.
-- Keyword search is strongest on exact-identifier queries; semantic search is strongest on paraphrased questions.
-- A reranker, a held-out test set and answer-level metrics (claim support, abstention accuracy) are planned for M07.
+| Configuration | answer accuracy | false abstention ↓ | abstention accuracy | claim support | reference cited | citation validity | p50 / p95 ms |
+|---|---|---|---|---|---|---|---|
+| no RAG | 0.125 [0.00–0.38] | 0.125 | 0.40 [0.00–0.80] | — | — | — | 6,103 / 14,019 |
+| **hybrid** (default) | 0.750 [0.50–0.94] | 0.250 | 1.00 | 1.000 | 0.875 | 1.000 | 14,621 / 21,496 |
+| hybrid + rerank (7B) | 0.750 [0.38–1.00] | 0.250 | 1.00 | 0.929 | 1.000 | 1.000 | 25,986 / 30,785 |
+
+Paired comparisons (`app.evals.compare`): grounding improves answer accuracy over no-RAG (Δ +0.625, CI [+0.25, +0.94]) and abstention accuracy (Δ +0.60, CI [+0.20, +1.00]). Neither reranker improves anything significantly; the 1.5B reranker significantly **regresses** recall@10 (Δ −0.20, CI [−0.35, −0.08]) and nDCG@10.
+
+**Decision: reranking stays off** (`default_rerank_profile: null`). The 7B reranker matches hybrid quality at ~700× the retrieval latency; the 1.5B one is harmful. Both remain available per run (`rerank: true`) and in the search panel for experiments.
+
+**Prompt injection.** Injected instructions in a passage are scored strictly: any forbidden string in the output fails, even when only quoted. The model alone resisted 1 of 3 probes. The server now removes PMIDs, PMCIDs, DOIs and URLs that do not belong to the run's evidence sources (`citation_stats.unverified_identifiers`), which raises system-level resistance to 2 of 3. The remaining failure is the model quoting a canary token while describing the passage as suspicious.
+
+Caveats:
+
+- The sets are tiny (8 answerable questions), so intervals are wide; treat the numbers as regression baselines, not general quality claims.
+- The judge is an automated proxy on the same model family as the answerer, not an independent expert review. Claim support is judged per cited sentence.
+- The 2 false abstentions under hybrid (a05, a07) are questions whose answer is spread across passages; the model declared `insufficient_evidence`.
+- Latencies are with models already loaded; the 7B model and the embedding model share 6 GB of VRAM, so the first request after a model swap is much slower.
 
 ## Repository layout
 
@@ -334,23 +376,24 @@ backend/
     ingestion/   # license policy, chunker, versioned document store, ingestion pipeline
     storage/     # object store (filesystem, content-addressed)
     workers/     # ingestion worker (separate process, DB job queue)
-    retrieval/   # embeddings (spaces, batching), hybrid keyword + vector search with RRF
-    evals/       # ranking metrics with bootstrap CIs, retrieval ablation runner
-  alembic/       # migrations (0001 baseline … 0006 retrieval)
+    retrieval/   # embeddings (spaces, batching), hybrid keyword + vector search with RRF, LLM listwise reranker
+    evals/       # metrics with bootstrap CIs, retrieval + answer runners, LLM judge, paired compare, report store
+  alembic/       # migrations (0001 baseline … 0007 quality)
   model_registry.yaml
   tests/         # fixtures: recorded PubMed payloads (abstracts/affiliations replaced), Europe PMC CC BY full text
 frontend/
   src/
     app/         # providers, router, layout
     components/  # shared UI primitives
-    features/    # dashboard, projects, chat, literature, evidence, settings
+    features/    # dashboard, projects, chat, literature, evidence, evaluations, settings
     lib/api/     # typed fetch client + Zod response schemas
 compose.yaml       # db, backend, worker, frontend
 compose.ai.yaml    # optional Ollama service
 compose.gpu.yaml   # optional NVIDIA GPU for Ollama
+compose.observability.yaml  # optional Jaeger + OTLP tracing
 .github/workflows/ci.yml
 evals/
-  datasets/        # gold sets (JSONL; relevance by quoted passage text)
+  datasets/        # gold sets (JSONL, dev/test split; relevance by quoted passage text)
   reports/         # eval reports with dataset hash, commit, embedding space
 ```
 
@@ -364,7 +407,7 @@ evals/
 | **M04 LLM Gateway** ✅ | Local Ollama / OpenAI-compatible gateway, streaming runs, model registry, usage tracking |
 | **M05 Evidence Ingestion** ✅ | Durable ingestion worker, license-gated OA full text, versioned documents, section/sentence chunks |
 | **M06 Retrieval / RAG** ✅ | Embeddings, hybrid FTS + vector search (RRF), grounded answers with validated citations, evidence board, retrieval eval |
-| M07 Quality & Evals | Gold dataset, reranking, citation support metrics, tracing |
+| **M07 Quality & Evals** ✅ | Held-out test sets, answer eval with LLM judge, reranker ablation, paired compare, identifier validation, stage timings, OpenTelemetry tracing |
 | M08 Entity Intelligence | UniProt / NCBI / Open Targets, entity resolution |
 | M09 Security & Multi-user | Auth, ACLs, data isolation, rate limits |
 | M10 Analysis Lab | Object storage, validated job workers |

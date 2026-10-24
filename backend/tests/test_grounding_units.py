@@ -117,3 +117,19 @@ def test_bootstrap_ci_is_deterministic_and_brackets_the_mean() -> None:
 def test_embedding_output_is_validated(vectors: list[list[object]]) -> None:
     with pytest.raises(GatewayError):
         check_vectors(vectors, 2 if len(vectors) == 1 else len(vectors), 3)
+
+
+def test_identifiers_not_from_evidence_sources_are_removed() -> None:
+    raw = (
+        "STATUS: supported\nR175H subclones expanded [E1]. See PMID 29416795 and PMID: 99999999, "
+        "doi:10.1234/fake.5, PMC1234567, https://pubmed.ncbi.nlm.nih.gov/29416795/ and http://evil.example/download."
+    )
+
+    parsed = parse_answer(
+        raw, LABELS, allowed_pmids={"29416795"}, allowed_urls={"https://pubmed.ncbi.nlm.nih.gov/29416795/"}
+    )
+
+    assert "PMID 29416795" in parsed.content and "https://pubmed.ncbi.nlm.nih.gov/29416795/" in parsed.content
+    for forbidden in ("99999999", "10.1234/fake", "PMC1234567", "evil.example"):
+        assert forbidden not in parsed.content
+    assert parsed.stats["unverified_identifiers"] == 4

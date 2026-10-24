@@ -81,6 +81,20 @@ def _with_ids(section: object) -> object:
     return section
 
 
+class RerankProfile(BaseModel):
+    """Reranks the top retrieval candidates with a registered generation model (listwise relevance grades)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: str
+    label: str
+    generation_profile: str
+    max_candidates: int = Field(default=20, ge=2, le=50)
+    # Passages are truncated to this many characters in the reranking prompt.
+    passage_chars: int = Field(default=800, ge=100, le=4000)
+    notes: str | None = None
+
+
 class ModelRegistry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -88,13 +102,16 @@ class ModelRegistry(BaseModel):
     profiles: dict[str, ModelProfile]
     default_embedding_profile: str | None = None
     embedding_profiles: dict[str, EmbeddingProfile] = Field(default_factory=dict)
+    # None: no reranking. Enable a profile only when the eval shows it helps (see evals/).
+    default_rerank_profile: str | None = None
+    rerank_profiles: dict[str, RerankProfile] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
     def _inject_ids(cls, data: object) -> object:
         if isinstance(data, dict):
             data = {**data}
-            for key in ("profiles", "embedding_profiles"):
+            for key in ("profiles", "embedding_profiles", "rerank_profiles"):
                 if key in data:
                     data[key] = _with_ids(data[key])
         return data
@@ -105,6 +122,11 @@ class ModelRegistry(BaseModel):
             raise ValueError(f"default_profile {self.default_profile!r} is not defined")
         if self.default_embedding_profile is not None and self.default_embedding_profile not in self.embedding_profiles:
             raise ValueError(f"default_embedding_profile {self.default_embedding_profile!r} is not defined")
+        if self.default_rerank_profile is not None and self.default_rerank_profile not in self.rerank_profiles:
+            raise ValueError(f"default_rerank_profile {self.default_rerank_profile!r} is not defined")
+        for rerank in self.rerank_profiles.values():
+            if rerank.generation_profile not in self.profiles:
+                raise ValueError(f"{rerank.id}: generation_profile {rerank.generation_profile!r} is not defined")
         return self
 
 

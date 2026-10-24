@@ -5,6 +5,7 @@ import { LiteraturePage } from '../features/literature/LiteraturePage'
 import { LiteratureRecordPage } from '../features/literature/LiteratureRecordPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { DocumentPage } from '../features/evidence/DocumentPage'
+import { EvaluationsPage } from '../features/evaluations/EvaluationsPage'
 import { EvidenceBoardPage } from '../features/evidence/EvidenceBoardPage'
 import { ProjectPage } from '../features/projects/ProjectPage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
       { path: 'literature', element: <LiteraturePage /> },
       { path: 'literature/pubmed/:pmid', element: <LiteratureRecordPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'evaluations', element: <EvaluationsPage /> },
       { path: 'documents/:documentId', element: <DocumentPage /> },
       { path: 'projects/:projectId/evidence-board', element: <EvidenceBoardPage /> },
       { path: '*', element: <NotFoundPage /> },

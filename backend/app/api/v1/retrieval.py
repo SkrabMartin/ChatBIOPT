@@ -11,6 +11,7 @@ from app.core.errors import AppError, NotFoundError
 from app.db.session import get_session
 from app.models import Project
 from app.retrieval.embeddings import EmbeddingSpace, resolve_space
+from app.retrieval.rerank import resolve_reranker
 from app.retrieval.search import retrieve
 from app.schemas.retrieval import (
     ClaimRead,
@@ -42,9 +43,17 @@ async def retrieval_query(
             space = await resolve_space(models)
         except (GatewayError, AppError) as exc:
             space_error = str(exc)
+    reranker = resolve_reranker(models, data.rerank_profile) if data.rerank_profile else None
     try:
         result = await retrieve(
-            session, data.project_id, data.query, mode=data.mode, top_k=data.top_k, space=space, space_error=space_error
+            session,
+            data.project_id,
+            data.query,
+            mode=data.mode,
+            top_k=data.top_k,
+            space=space,
+            space_error=space_error,
+            reranker=reranker,
         )
     except GatewayError as exc:
         raise AppError(f"Embedding the query failed: {exc.message}") from exc
@@ -56,6 +65,8 @@ async def retrieval_query(
         embedding_space=result.embedding_space,
         min_similarity=min_similarity,
         latency_ms=result.latency_ms,
+        reranker=result.reranker,
+        rerank_ms=result.rerank_ms,
         warnings=result.warnings,
         hits=[
             RetrievalHitRead(
@@ -81,6 +92,7 @@ async def retrieval_query(
                 semantic_rank=hit.semantic_rank,
                 similarity=hit.similarity,
                 fused_score=hit.fused_score,
+                rerank_score=hit.rerank_score,
                 counts_as_evidence=hit.is_evidence(min_similarity),
             )
             for rank, hit in enumerate(result.hits, start=1)

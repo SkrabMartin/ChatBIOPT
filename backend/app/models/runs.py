@@ -63,6 +63,11 @@ class Run(Base):
     # supported | partially_supported | conflicting | insufficient_evidence | tool_error | unclassified
     answer_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
     citation_stats: Mapped[dict[str, int] | None] = mapped_column(JSONB, nullable=True)
+    # Rerank profile applied to retrieval (None: fused order only).
+    rerank_profile: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Milliseconds per stage: retrieval_ms, rerank_ms, generation_ms (and rerank token usage). Trace-like breakdown
+    # that survives without an OpenTelemetry backend.
+    timings: Mapped[dict[str, int] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

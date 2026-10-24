@@ -29,6 +29,8 @@ export const runSchema = z.object({
   embedding_space: z.string().nullable(),
   answer_class: z.string().nullable(),
   citation_stats: z.record(z.string(), z.number()).nullable(),
+  rerank_profile: z.string().nullable(),
+  timings: z.record(z.string(), z.number().nullable()).nullable(),
   created_at: z.string(),
   started_at: z.string().nullable(),
   finished_at: z.string().nullable(),
@@ -60,6 +62,9 @@ const modelListSchema = z.object({
   default_profile: z.string(),
   allow_external_models: z.boolean(),
   items: z.array(modelProfileSchema),
+  rerank_profiles: z.array(
+    z.object({ id: z.string(), label: z.string(), generation_profile: z.string(), is_default: z.boolean() }),
+  ),
 })
 
 export const ACTIVE_STATUSES: Record<Run['status'], boolean> = {
@@ -123,6 +128,7 @@ export const runEvidenceSchema = z.object({
   semantic_rank: z.number().nullable(),
   similarity: z.number().nullable(),
   fused_score: z.number(),
+  rerank_score: z.number().nullable(),
   chunk_id: z.string(),
   text: z.string(),
   section: z.string(),

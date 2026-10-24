@@ -28,6 +28,7 @@ from app.ai.registry import load_registry
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError, UpstreamError
 from app.core.logging import configure_logging, trace_id_var
+from app.core.tracing import configure_tracing, span
 from app.db.session import create_engine
 from app.ingestion.pipeline import IngestionPipeline
 from app.integrations.europepmc.client import EuropePMCClient
@@ -95,7 +96,13 @@ class IngestionWorker:
                 await self._finish(session, job, "failed", "worker_lost", "The worker stopped repeatedly mid-job")
                 return
             try:
-                await self._pipeline.run(session, job)
+                with span(
+                    "ingestion.job",
+                    job_id=str(job.id),
+                    source=f"{job.source_type}:{job.external_id}",
+                    attempt=job.attempts,
+                ):
+                    await self._pipeline.run(session, job)
             except UpstreamError as exc:
                 await session.rollback()
                 await self._retry_or_fail(session, job_id, exc.code, exc.message)
@@ -200,6 +207,7 @@ def build_worker(
 async def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
+    configure_tracing("bioresearch-worker", settings.otel_exporter_otlp_endpoint)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):

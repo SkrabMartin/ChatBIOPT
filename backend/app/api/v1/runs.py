@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.gateway.router import ModelRouter
 from app.ai.runner import RunManager
 from app.db.session import get_session
-from app.schemas.runs import ModelList, ModelProfileRead, RunCreate, RunEvidenceRead, RunRead
+from app.schemas.runs import ModelList, ModelProfileRead, RerankProfileRead, RunCreate, RunEvidenceRead, RunRead
 from app.schemas.workspace import MessageRead
 from app.services.runs import RunService
 
@@ -62,7 +62,18 @@ async def list_models(model_router: Annotated[ModelRouter, Depends(get_model_rou
 
     items = await asyncio.gather(*(describe(pid) for pid in registry.profiles))
     return ModelList(
-        default_profile=registry.default_profile, allow_external_models=model_router.allow_external, items=list(items)
+        default_profile=registry.default_profile,
+        allow_external_models=model_router.allow_external,
+        items=list(items),
+        rerank_profiles=[
+            RerankProfileRead(
+                id=r.id,
+                label=r.label,
+                generation_profile=r.generation_profile,
+                is_default=r.id == registry.default_rerank_profile,
+            )
+            for r in registry.rerank_profiles.values()
+        ],
     )
 
 
