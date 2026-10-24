@@ -4,6 +4,7 @@ import { ConversationPage } from '../features/chat/ConversationPage'
 import { LiteraturePage } from '../features/literature/LiteraturePage'
 import { LiteratureRecordPage } from '../features/literature/LiteratureRecordPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { DocumentPage } from '../features/evidence/DocumentPage'
 import { ProjectPage } from '../features/projects/ProjectPage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: 'literature', element: <LiteraturePage /> },
       { path: 'literature/pubmed/:pmid', element: <LiteratureRecordPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'documents/:documentId', element: <DocumentPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

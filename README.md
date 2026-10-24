@@ -2,7 +2,7 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M04 LLM Gateway.** Projects and conversations are persisted, PubMed lookup returns provenance-tracked records, and conversations get streamed answers from a local model (Ollama), with every answer traced to a recorded run. Answers are **not yet grounded in retrieved sources**; retrieval-augmented answers with citations arrive in M05–M06 (see the [roadmap](#roadmap)).
+> **Status: M05 Evidence Ingestion.** Projects and conversations are persisted, PubMed lookup returns provenance-tracked records, conversations get streamed answers from a local model with every answer traced to a recorded run, and publications can be ingested into a project's evidence library. Ingestion stores versioned abstracts, license-gated open-access full texts and addressable chunks. Chat answers are **not yet grounded in this evidence**; retrieval and citations arrive in M06 (see the [roadmap](#roadmap)).
 >
 > **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
@@ -38,7 +38,7 @@ docker compose up -d --build --wait
 | http://localhost:8080/api/v1/health | Health through the frontend proxy |
 | http://localhost:8000/api/v1/docs | OpenAPI / Swagger UI (direct to backend) |
 
-The backend applies pending Alembic migrations on startup (`RUN_MIGRATIONS=0` disables this). Data lives in the `pgdata` volume and survives restarts; `docker compose down -v` deletes it. All ports bind to `127.0.0.1` only.
+The backend applies pending Alembic migrations on startup (`RUN_MIGRATIONS=0` disables this). The `worker` service processes ingestion jobs. Data lives in the `pgdata` (database) and `objects` (document blobs) volumes and survives restarts; `docker compose down -v` deletes both. All ports bind to `127.0.0.1` only.
 
 ### Local models (optional)
 
@@ -92,6 +92,12 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `ALLOW_EXTERNAL_MODELS` | `false` | Must be `true` before any `data_policy: external` profile (hosted API) can be used |
 | `MODEL_READ_TIMEOUT_S` | `120` | Max silence between streamed chunks (includes model load on first use) |
 | `RUN_MAX_DURATION_S` | `300` | Hard limit for one answer |
+| `OBJECT_STORE_PATH` | `var/objects` | Filesystem object store for document text and raw upstream payloads |
+| `FULLTEXT_ALLOWED_LICENSES` | all CC licenses + CC0 | Licenses under which open-access full text may be stored |
+| `EUROPEPMC_BASE_URL` | Europe PMC REST | Open-access status, license and JATS full text |
+| `INGESTION_MAX_ATTEMPTS` | `3` | Attempts per ingestion job for transient provider failures |
+| `INGESTION_RETRY_DELAY_S` | `30` | Base delay before a retry (multiplied by the attempt number) |
+| `INGESTION_LEASE_S` | `300` | Worker lease; a job whose worker died becomes claimable again after this |
 
 ## Checks
 
@@ -120,9 +126,9 @@ cd backend && RUN_LIVE_TESTS=1 pytest -m live
 ```json
 {
   "status": "ok",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0004", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0005", "latency_ms": 1.2 }
 }
 ```
 
@@ -207,6 +213,41 @@ How it works:
 - **Data policy.** Profiles with `data_policy: external` cannot be used unless `ALLOW_EXTERNAL_MODELS=true`, and they also need their API-key variable set. The shipped registry contains only local and self-hosted profiles. To add a hosted model, copy the vLLM entry and set `deployment: cloud`, `data_policy: external`, `base_url`, `model`, `api_key_env` and the provider's prices.
 - **Rendering.** Model Markdown is rendered without raw HTML or images. Links appear as inert text, so an unverified URL never looks like a citation.
 
+### Evidence ingestion
+
+| Method & route | Purpose |
+|---|---|
+| `POST /api/v1/projects/{id}/sources` | `{identifier: "<PMID>"}` → `202` with an ingestion job; returns the active job instead if one exists |
+| `GET /api/v1/projects/{id}/sources` | Evidence library: sources, latest document version per kind, chunk counts, latest job (with step log) |
+| `POST /api/v1/projects/{id}/sources/{source_id}/refresh` · `DELETE …/{source_id}` | Re-ingest · unlink (documents are kept) |
+| `GET /api/v1/ingestion-jobs/{id}` | Job status, attempts and per-step log |
+| `GET /api/v1/sources/{id}/documents` · `GET /api/v1/documents/{id}` · `GET /api/v1/chunks/{id}` | All versions · one version with text, sections and chunks · one chunk with its document and source |
+
+```mermaid
+flowchart LR
+    API[POST sources] -->|queued job| Q[(ingestion_jobs)]
+    Q -->|FOR UPDATE SKIP LOCKED| W[worker]
+    W --> M[PubMed metadata] --> A[abstract document]
+    W --> O[Europe PMC: OA status + license] -->|allowed license only| F[JATS full text]
+    A & F --> C[section/sentence chunks]
+    C --> V[verify checksums + offsets]
+    A & F -.->|text + raw payload| S[(object store)]
+```
+
+- **Durable queue.** Jobs live in PostgreSQL and are processed by a separate `worker` process (`python -m app.workers.ingestion`), never inside an HTTP request.
+  - Workers claim jobs with `FOR UPDATE SKIP LOCKED` and hold a lease, so a crashed worker's job is picked up again.
+  - Transient provider failures are retried with a growing delay, up to `INGESTION_MAX_ATTEMPTS`. Permanent ones, such as an unknown PMID, fail immediately.
+  - Each step is committed and logged as it finishes, so the abstract from a partly failed attempt is kept.
+- **License gate.** Bibliographic metadata does not grant the right to archive full text. Full text is downloaded only when Europe PMC marks the article open access *and* gives an explicit, recognised license from `FULLTEXT_ALLOWED_LICENSES`. The license declared inside the JATS XML is checked again. An article that is "open access" without a license (for example an NIH author manuscript) stays abstract-only, and the job log says why.
+- **Versioning and idempotency.** A document is one immutable text version of a source (`abstract` or `fulltext`). Re-ingesting identical text changes nothing; changed text becomes version *n+1*. Old versions and their chunks are never deleted, so anything that cited them still resolves to the exact text that was seen. The two kinds of documents are stored differently:
+  - **Database:** checksums, license, origin URL and parser version.
+  - **Object store:** the normalized text and the raw upstream payload, under content-addressed keys.
+- **Chunking (`section-sentence-v1`).** Each chunk records its section kind and heading path plus `[start, end)` offsets into the stored text. A verification step checks after every ingestion that `text[start:end] == chunk.text` and that the blobs still match their checksums.
+  - Chunks stay within one section, so Methods and Results passages are never mixed.
+  - Chunks end on a sentence boundary, without splitting at abbreviations such as "et al." or "Fig.".
+  - Each chunk targets about 350 tokens (hard limit 600), and one sentence overlaps into the next chunk.
+- **Shared, not duplicated.** Sources and documents are public data shared across projects, and a project only links to them. Two projects ingesting the same PMID produce one set of documents.
+
 ## Repository layout
 
 ```text
@@ -218,18 +259,21 @@ backend/
     models/      # SQLAlchemy models (workspace, literature sources)
     schemas/     # Pydantic API contracts
     services/    # domain operations (projects, conversations, literature, runs)
-    integrations/# external providers: shared rate limit/retry, PubMed client + parser
+    integrations/# external providers: shared rate limit/retry, PubMed + Europe PMC clients, JATS parser
     ai/          # model registry, gateway adapters + router, versioned prompts, context builder, run executor
-  alembic/       # migrations (0001 baseline, 0002 workspace, 0003 literature, 0004 runs)
+    ingestion/   # license policy, chunker, versioned document store, ingestion pipeline
+    storage/     # object store (filesystem, content-addressed)
+    workers/     # ingestion worker (separate process, DB job queue)
+  alembic/       # migrations (0001 baseline … 0005 evidence)
   model_registry.yaml
-  tests/         # fixtures/pubmed: recorded PubMed payloads (abstracts/affiliations replaced)
+  tests/         # fixtures: recorded PubMed payloads (abstracts/affiliations replaced), Europe PMC CC BY full text
 frontend/
   src/
     app/         # providers, router, layout
     components/  # shared UI primitives
-    features/    # dashboard, projects, chat, literature, settings
+    features/    # dashboard, projects, chat, literature, evidence, settings
     lib/api/     # typed fetch client + Zod response schemas
-compose.yaml       # db, backend, frontend
+compose.yaml       # db, backend, worker, frontend
 compose.ai.yaml    # optional Ollama service
 compose.gpu.yaml   # optional NVIDIA GPU for Ollama
 .github/workflows/ci.yml
@@ -243,7 +287,7 @@ compose.gpu.yaml   # optional NVIDIA GPU for Ollama
 | **M02 Persistent Workspace** ✅ | Projects, conversations, messages; CRUD and UI |
 | **M03 Source Lookup** ✅ | Read-only PubMed search with stable IDs and provenance, no LLM |
 | **M04 LLM Gateway** ✅ | Local Ollama / OpenAI-compatible gateway, streaming runs, model registry, usage tracking |
-| M05 Evidence Ingestion | Metadata, open-access documents, chunking, versioning |
+| **M05 Evidence Ingestion** ✅ | Durable ingestion worker, license-gated OA full text, versioned documents, section/sentence chunks |
 | M06 Retrieval / RAG | Embeddings, hybrid FTS + vector search, validated citations |
 | M07 Quality & Evals | Gold dataset, reranking, citation support metrics, tracing |
 | M08 Entity Intelligence | UniProt / NCBI / Open Targets, entity resolution |

@@ -1,0 +1,21 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "42857877",
+        "source": "MED",
+        "pmid": "42857877",
+        "pmcid": null,
+        "doi": "10.1055/s-0046-1823103",
+        "title": "Giant Cell Glioblastoma: Case Series of a Rare Glioma with Unique Histomorphology and Molecular Heterogeneity.",
+        "isOpenAccess": "N",
+        "inEPMC": "N",
+        "inPMC": "N",
+        "license": "cc by-nc-nd",
+        "hasPDF": "N"
+      }
+    ]
+  }
+}

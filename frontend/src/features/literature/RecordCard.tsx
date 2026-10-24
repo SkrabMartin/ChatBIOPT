@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { LiteratureRecord } from '../../lib/api/literature'
+import { AddToProject } from '../evidence/AddToProject'
 
 function formatAuthors(authors: string[], max = 3): string {
   if (authors.length === 0) return 'No authors listed'
@@ -50,6 +51,7 @@ export function RecordCard({ record }: { record: LiteratureRecord }) {
           .join(' · ')}
       </p>
       <IdentifierLinks record={record} />
+      <AddToProject pmid={record.pmid} />
       {record.abstract ? (
         <div>
           <button

@@ -1,0 +1,10 @@
+fulltext_PMC5788663.xml
+  Pain M, Wang H, Lee E, Strahl M, Hamou W, Sebra R, Zhu J, Yong RL.
+  "Treatment-associated TP53 DNA-binding domain missense mutations in the pathogenesis of secondary gliosarcoma."
+  Oncotarget. 2018;9(2):2603-2621. doi:10.18632/oncotarget.23517. PMID 29416795, PMCID PMC5788663.
+  Retrieved unmodified from the Europe PMC REST API (fullTextXML).
+  License: Creative Commons Attribution 3.0 (https://creativecommons.org/licenses/by/3.0/).
+  Included as a test fixture under the terms of that license.
+
+search_*.json
+  Europe PMC search responses (resultType=core) reduced to the fields the client reads.

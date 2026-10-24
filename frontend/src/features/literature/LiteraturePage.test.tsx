@@ -121,7 +121,8 @@ describe('LiteraturePage', () => {
 
     expect(await screen.findByText(/showing 21–21/)).toBeInTheDocument()
     expect(router.state.location.search).toBe('?q=TP53&offset=20')
-    expect(fetchMock.mock.calls.map(([, init]) => searchBody.parse(JSON.parse(String(init?.body))).offset)).toEqual([0, 20])
+    const searches = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/literature/search'))
+    expect(searches.map(([, init]) => searchBody.parse(JSON.parse(String(init?.body))).offset)).toEqual([0, 20])
     expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled()
   })
 })

@@ -15,26 +15,36 @@ from pathlib import Path
 import httpx
 
 FIXTURES = Path(__file__).parent / "fixtures" / "pubmed"
+EPMC_FIXTURES = Path(__file__).parent / "fixtures" / "europepmc"
 ESEARCH_FIXTURE = json.loads((FIXTURES / "esearch_tp53_glioblastoma.json").read_text(encoding="utf-8"))
 EFETCH_FIXTURE = (FIXTURES / "efetch_tp53_glioblastoma.xml").read_bytes()
 FIXTURE_PMIDS: list[str] = ESEARCH_FIXTURE["esearchresult"]["idlist"]
+# Open-access article (CC BY 3.0) with Europe PMC full text; see fixtures/europepmc/NOTICE.txt.
+OA_PMID = "29416795"
+OA_PMCID = "PMC5788663"
+FULLTEXT_FIXTURE = (EPMC_FIXTURES / f"fulltext_{OA_PMCID}.xml").read_bytes()
 
 Responder = Callable[[httpx.Request], httpx.Response]
 
 
-def _efetch_subset(pmids: list[str]) -> bytes:
-    """EFetch fixture filtered to the requested PMIDs, like the real service (unknown IDs are simply absent)."""
+def _efetch_subset(pmids: list[str], transform: Callable[[bytes], bytes] | None = None) -> bytes:
+    """EFetch fixtures filtered to the requested PMIDs, like the real service (unknown IDs are simply absent)."""
     root = ET.fromstring(EFETCH_FIXTURE)  # noqa: S314 - trusted local fixture
+    extra = ET.fromstring((FIXTURES / f"efetch_{OA_PMID}.xml").read_bytes())  # noqa: S314
+    root.extend(list(extra))
     for article in list(root):
         if article.findtext(".//PMID") not in pmids:
             root.remove(article)
-    return ET.tostring(root, encoding="utf-8")
+    payload = ET.tostring(root, encoding="utf-8")
+    return transform(payload) if transform else payload
 
 
 class FakeNCBI:
     def __init__(self) -> None:
         self.requests: list[httpx.Request] = []
         self._scripted: dict[str, deque[Responder]] = defaultdict(deque)
+        # Applied to every EFetch payload (simulate PubMed revising a record).
+        self.efetch_transform: Callable[[bytes], bytes] | None = None
 
     def queue(self, endpoint: str, *responders: Responder) -> None:
         """Serve these responses, in order, for the next calls to `endpoint` ("esearch" or "efetch")."""
@@ -52,7 +62,9 @@ class FakeNCBI:
             return httpx.Response(200, json=ESEARCH_FIXTURE)
         if endpoint == "efetch":
             pmids = request.url.params["id"].split(",")
-            return httpx.Response(200, content=_efetch_subset(pmids), headers={"Content-Type": "text/xml"})
+            return httpx.Response(
+                200, content=_efetch_subset(pmids, self.efetch_transform), headers={"Content-Type": "text/xml"}
+            )
         return httpx.Response(404)
 
 
@@ -123,14 +135,52 @@ class FakeOllama:
         yield (json.dumps(done) + "\n").encode()
 
 
+class FakeEuropePMC:
+    """Europe PMC search (OA status + license) and fullTextXML, from recorded fixtures by default."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+        self.search_results: dict[str, dict[str, object]] = {
+            pmid: json.loads((EPMC_FIXTURES / f"search_{pmid}.json").read_text(encoding="utf-8"))
+            for pmid in (OA_PMID, "18772890", "42857877")
+        }
+        self.full_texts: dict[str, bytes] = {OA_PMCID: FULLTEXT_FIXTURE}
+        self._scripted: dict[str, deque[Responder]] = defaultdict(deque)
+
+    def queue(self, endpoint: str, *responders: Responder) -> None:
+        """`endpoint` is "search" or "fulltext"."""
+        self._scripted[endpoint].extend(responders)
+
+    def calls(self, endpoint: str) -> list[httpx.Request]:
+        suffix = "/search" if endpoint == "search" else "/fullTextXML"
+        return [r for r in self.requests if r.url.path.endswith(suffix)]
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        endpoint = "search" if request.url.path.endswith("/search") else "fulltext"
+        if self._scripted[endpoint]:
+            return self._scripted[endpoint].popleft()(request)
+        if endpoint == "search":
+            pmid = request.url.params["query"].split()[0].removeprefix("EXT_ID:")
+            return httpx.Response(200, json=self.search_results.get(pmid, {"resultList": {"result": []}}))
+        pmcid = request.url.path.split("/")[-2]
+        if pmcid in self.full_texts:
+            return httpx.Response(200, content=self.full_texts[pmcid])
+        # Like the real service: 500, not 404, for articles outside the OA subset.
+        return httpx.Response(500, json={"status": 500, "error": "Internal Server Error"})
+
+
 class FakeUpstreams:
     """Routes outbound requests by host, like the real network would."""
 
-    def __init__(self, ncbi: FakeNCBI, ollama: FakeOllama) -> None:
+    def __init__(self, ncbi: FakeNCBI, ollama: FakeOllama, europepmc: FakeEuropePMC | None = None) -> None:
         self.ncbi = ncbi
         self.ollama = ollama
+        self.europepmc = europepmc or FakeEuropePMC()
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         if request.url.host == "ollama.test":
             return self.ollama.handle(request)
+        if request.url.host == "www.ebi.ac.uk":
+            return self.europepmc.handle(request)
         return self.ncbi.handle(request)

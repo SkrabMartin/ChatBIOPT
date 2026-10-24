@@ -12,10 +12,13 @@ from alembic.config import Config
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.config import Settings
+from app.db.session import create_engine
 from app.main import create_app
-from tests.fakes import FakeNCBI, FakeOllama, FakeUpstreams
+from app.workers.ingestion import IngestionWorker, build_worker
+from tests.fakes import FakeEuropePMC, FakeNCBI, FakeOllama, FakeUpstreams
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -70,13 +73,16 @@ def make_settings(database_url: str, **overrides: Any) -> Settings:
 
 @asynccontextmanager
 async def running_app(
-    settings: Settings, ncbi: FakeNCBI | None = None, ollama: FakeOllama | None = None
+    settings: Settings,
+    ncbi: FakeNCBI | None = None,
+    ollama: FakeOllama | None = None,
+    europepmc: FakeEuropePMC | None = None,
 ) -> AsyncIterator[AsyncClient]:
     """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start.
 
-    Outbound HTTP always goes to fakes: tests never reach NCBI or a model server.
+    Outbound HTTP always goes to fakes: tests never reach NCBI, Europe PMC or a model server.
     """
-    upstreams = FakeUpstreams(ncbi or FakeNCBI(), ollama or FakeOllama())
+    upstreams = FakeUpstreams(ncbi or FakeNCBI(), ollama or FakeOllama(), europepmc)
     app = create_app(settings, http_transport=httpx.MockTransport(upstreams.handle))
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
@@ -94,19 +100,50 @@ def ollama() -> FakeOllama:
     return FakeOllama()
 
 
+@pytest.fixture
+def europepmc() -> FakeEuropePMC:
+    return FakeEuropePMC()
+
+
+@pytest.fixture
+def object_store_path(tmp_path: Path) -> Path:
+    return tmp_path / "objects"
+
+
 StartApp = Callable[..., AbstractAsyncContextManager[AsyncClient]]
 
 
 @pytest.fixture
-def start_app(migrated_database: str, ncbi: FakeNCBI, ollama: FakeOllama) -> StartApp:
+def start_app(
+    migrated_database: str, ncbi: FakeNCBI, ollama: FakeOllama, europepmc: FakeEuropePMC, object_store_path: Path
+) -> StartApp:
     """Start an app on the migrated test DB; keyword arguments override settings."""
-    return lambda **overrides: running_app(make_settings(migrated_database, **overrides), ncbi, ollama)
+    return lambda **overrides: running_app(
+        make_settings(migrated_database, object_store_path=object_store_path, **overrides), ncbi, ollama, europepmc
+    )
 
 
 @pytest.fixture
 async def client(start_app: StartApp) -> AsyncIterator[AsyncClient]:
     async with start_app() as c:
         yield c
+
+
+@pytest.fixture
+async def worker(
+    migrated_database: str,
+    ncbi: FakeNCBI,
+    ollama: FakeOllama,
+    europepmc: FakeEuropePMC,
+    object_store_path: Path,
+) -> AsyncIterator[IngestionWorker]:
+    """The ingestion worker wired to the same DB, object store and fakes as `client` (no retry delay)."""
+    settings = make_settings(migrated_database, object_store_path=object_store_path, ingestion_retry_delay_s=0)
+    engine = create_engine(settings)
+    transport = httpx.MockTransport(FakeUpstreams(ncbi, ollama, europepmc).handle)
+    async with httpx.AsyncClient(transport=transport) as http:
+        yield build_worker(settings, async_sessionmaker(engine, expire_on_commit=False), http)
+    await engine.dispose()
 
 
 @pytest.fixture

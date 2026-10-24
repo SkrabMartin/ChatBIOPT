@@ -1,0 +1,21 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "18772890",
+        "source": "MED",
+        "pmid": "18772890",
+        "pmcid": "PMC2671642",
+        "doi": "10.1038/nature07385",
+        "title": "Comprehensive genomic characterization defines human glioblastoma genes and core pathways.",
+        "isOpenAccess": "Y",
+        "inEPMC": "Y",
+        "inPMC": "Y",
+        "license": null,
+        "hasPDF": "Y"
+      }
+    ]
+  }
+}

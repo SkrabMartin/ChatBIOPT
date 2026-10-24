@@ -38,6 +38,23 @@ class Settings(BaseSettings):
     model_read_timeout_s: float = Field(default=120.0, gt=0, le=900)
     run_max_duration_s: float = Field(default=300.0, gt=0, le=3600)
 
+    # Evidence ingestion (M05).
+    europepmc_base_url: str = "https://www.ebi.ac.uk/europepmc/webservices/rest"
+    europepmc_requests_per_second: float = Field(default=5.0, gt=0, le=20)
+    object_store_path: Path = Path("var/objects")
+    # Comma-separated canonical ids (see app/ingestion/licensing.py). Full text with any other license, or none,
+    # is not stored; the abstract still is.
+    fulltext_allowed_licenses: str = "CC0,CC-BY,CC-BY-SA,CC-BY-ND,CC-BY-NC,CC-BY-NC-SA,CC-BY-NC-ND"
+    ingestion_poll_interval_s: float = Field(default=2.0, gt=0, le=60)
+    ingestion_lease_s: float = Field(default=300.0, gt=0)
+    ingestion_max_attempts: int = Field(default=3, ge=1, le=10)
+    ingestion_retry_delay_s: float = Field(default=30.0, ge=0)
+    worker_heartbeat_path: Path = Path("var/worker-heartbeat")
+
+    @property
+    def allowed_fulltext_licenses(self) -> frozenset[str]:
+        return frozenset(part.strip() for part in self.fulltext_allowed_licenses.split(",") if part.strip())
+
     @property
     def ncbi_requests_per_second(self) -> float:
         return 10.0 if self.ncbi_api_key else 3.0

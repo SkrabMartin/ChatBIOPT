@@ -19,6 +19,7 @@ from app.core.middleware import RequestContextMiddleware
 from app.db.session import create_engine
 from app.integrations.pubmed.client import PubMedClient
 from app.services.runs import recover_interrupted_runs
+from app.storage.object_store import FilesystemObjectStore
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
             follow_redirects=False,
         )
         app.state.pubmed = PubMedClient.from_settings(http, settings)
+        app.state.object_store = FilesystemObjectStore(settings.object_store_path)
 
         model_http = httpx.AsyncClient(
             transport=http_transport,

@@ -14,6 +14,7 @@ import {
   type Project,
 } from '../../lib/api/workspace'
 import { formatDateTime, plural } from '../../lib/format'
+import { EvidenceLibrary } from '../evidence/EvidenceLibrary'
 
 function EditProjectForm({ project, onDone }: { project: Project; onDone: () => void }) {
   const [title, setTitle] = useState(project.title)
@@ -178,6 +179,7 @@ export function ProjectPage() {
         )}
         {remove.error ? <ErrorNotice error={remove.error} title="Could not delete project" /> : null}
       </Card>
+      <EvidenceLibrary projectId={projectId} />
       <Conversations projectId={projectId} />
     </div>
   )

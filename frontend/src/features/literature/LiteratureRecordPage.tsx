@@ -4,6 +4,7 @@ import { Button, Card } from '../../components/ui'
 import { ApiError } from '../../lib/api/client'
 import { useLiteratureRecord, useRefreshLiteratureRecord } from '../../lib/api/literature'
 import { formatDateTime } from '../../lib/format'
+import { AddToProject } from '../evidence/AddToProject'
 import { IdentifierLinks } from './RecordCard'
 
 export function LiteratureRecordPage() {
@@ -42,6 +43,7 @@ export function LiteratureRecordPage() {
           <p className="text-xs text-slate-500">{r.publication_types.join(' · ')}</p>
         ) : null}
         <IdentifierLinks record={r} />
+        <AddToProject pmid={r.pmid} />
       </Card>
 
       <Card className="space-y-3">

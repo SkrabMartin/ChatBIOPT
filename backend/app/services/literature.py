@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
@@ -29,7 +30,7 @@ class LiteratureService:
         retrieved_at = fetched[0].record.retrieved_at if fetched else datetime.now(UTC)
 
         for item in fetched:
-            await self._upsert(item)
+            await upsert_source(self.session, item)
         search = LiteratureSearch(
             source_type="pubmed",
             query=request.query,
@@ -66,34 +67,35 @@ class LiteratureService:
         fetched = await self.pubmed.fetch([identifier])
         if not fetched:
             raise NotFoundError(f"PubMed has no record with PMID {identifier}")
-        await self._upsert(fetched[0])
+        await upsert_source(self.session, fetched[0])
         await self.session.commit()
         return fetched[0].record
 
-    async def _upsert(self, item: FetchedRecord) -> None:
-        record = item.record
-        values = {
-            "source_type": record.source,
-            "external_id": record.source_id,
-            "url": record.source_url,
-            "title": record.title,
-            "record": record.model_dump(mode="json"),
-            "raw_payload": item.raw_payload,
-            "raw_payload_sha256": record.raw_payload_sha256,
-            "normalizer_version": record.normalizer_version,
-            "retrieved_at": record.retrieved_at,
-        }
-        statement = insert(Source).values(**values, first_retrieved_at=record.retrieved_at)
-        # Latest snapshot wins; first_retrieved_at keeps when we first saw the record.
-        source_id = await self.session.scalar(
-            statement.on_conflict_do_update(
-                index_elements=[Source.source_type, Source.external_id], set_=values
-            ).returning(Source.id)
-        )
-        await self.session.execute(delete(SourceIdentifier).where(SourceIdentifier.source_id == source_id))
-        identifiers = {"pmid": record.pmid, "doi": record.doi, "pmcid": record.pmcid}
-        self.session.add_all(
-            SourceIdentifier(source_id=source_id, scheme=scheme, value=value)
-            for scheme, value in identifiers.items()
-            if value is not None
-        )
+
+async def upsert_source(session: AsyncSession, item: FetchedRecord) -> uuid.UUID:
+    """Insert or refresh the snapshot of a PubMed record and its identifiers. Caller commits."""
+    record = item.record
+    values = {
+        "source_type": record.source,
+        "external_id": record.source_id,
+        "url": record.source_url,
+        "title": record.title,
+        "record": record.model_dump(mode="json"),
+        "raw_payload": item.raw_payload,
+        "raw_payload_sha256": record.raw_payload_sha256,
+        "normalizer_version": record.normalizer_version,
+        "retrieved_at": record.retrieved_at,
+    }
+    statement = insert(Source).values(**values, first_retrieved_at=record.retrieved_at)
+    # Latest snapshot wins; first_retrieved_at keeps when we first saw the record.
+    upsert = statement.on_conflict_do_update(index_elements=[Source.source_type, Source.external_id], set_=values)
+    source_id: uuid.UUID = (await session.execute(upsert.returning(Source.id))).scalar_one()
+    await session.execute(delete(SourceIdentifier).where(SourceIdentifier.source_id == source_id))
+    identifiers = {"pmid": record.pmid, "doi": record.doi, "pmcid": record.pmcid}
+    session.add_all(
+        SourceIdentifier(source_id=source_id, scheme=scheme, value=value)
+        for scheme, value in identifiers.items()
+        if value is not None
+    )
+    await session.flush()
+    return source_id

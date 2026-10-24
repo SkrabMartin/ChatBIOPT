@@ -22,7 +22,8 @@ services:
 
   backend:
     build: ./backend
-    environment:
+    image: bioresearch-ai-backend
+    environment: &backend-env
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-bioresearch}:${POSTGRES_PASSWORD:-bioresearch}@db:5432/${POSTGRES_DB:-bioresearch}
@@ -31,6 +32,9 @@ services:
       # Without compose.ai.yaml the backend looks for Ollama on the Docker host.
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       ALLOW_EXTERNAL_MODELS: ${ALLOW_EXTERNAL_MODELS:-false}
+      FULLTEXT_ALLOWED_LICENSES: ${FULLTEXT_ALLOWED_LICENSES:-CC0,CC-BY,CC-BY-SA,CC-BY-ND,CC-BY-NC,CC-BY-NC-SA,CC-BY-NC-ND}
+    volumes:
+      - objects:/srv/backend/var/objects
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -38,6 +42,26 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  # Drains the ingestion job queue (evidence documents). Same image; the backend owns migrations.
+  worker:
+    image: bioresearch-ai-backend
+    command: ["python", "-m", "app.workers.ingestion"]
+    environment:
+      <<: *backend-env
+      RUN_MIGRATIONS: "0"
+    volumes:
+      - objects:/srv/backend/var/objects
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.workers.ingestion", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -51,3 +75,4 @@ services:
 
 volumes:
   pgdata:
+  objects:

@@ -1,0 +1,21 @@
+{
+  "version": "6.9",
+  "hitCount": 1,
+  "resultList": {
+    "result": [
+      {
+        "id": "29416795",
+        "source": "MED",
+        "pmid": "29416795",
+        "pmcid": "PMC5788663",
+        "doi": "10.18632/oncotarget.23517",
+        "title": "Treatment-associated <i>TP53</i> DNA-binding domain missense mutations in the pathogenesis of secondary gliosarcoma.",
+        "isOpenAccess": "Y",
+        "inEPMC": "Y",
+        "inPMC": "Y",
+        "license": "cc by",
+        "hasPDF": "Y"
+      }
+    ]
+  }
+}

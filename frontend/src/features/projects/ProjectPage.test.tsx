@@ -62,6 +62,7 @@ describe('ProjectPage', () => {
     const fetchMock = mockApi({
       'GET /api/v1/projects/p-1': () => jsonResponse(project),
       'GET /api/v1/projects/p-1/conversations': () => jsonResponse(emptyPage),
+      'GET /api/v1/projects/p-1/sources': () => jsonResponse({ items: [], pending_jobs: [] }),
       'DELETE /api/v1/projects/p-1': () => jsonResponse(null, 204),
     })
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
