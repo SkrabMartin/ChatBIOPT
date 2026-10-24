@@ -35,6 +35,8 @@ export const messageSchema = z.object({
   sequence: z.number(),
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string(),
+  /** The AI run that produced an assistant message; null for user messages. */
+  run_id: z.string().nullable(),
   created_at: z.string(),
 })
 export type Message = z.infer<typeof messageSchema>

@@ -89,6 +89,8 @@ class MessageRead(BaseModel):
     sequence: int
     role: Literal["user", "assistant", "system"]
     content: str
+    # The AI run that produced an assistant message; null for user messages.
+    run_id: uuid.UUID | None
     created_at: datetime
 
 

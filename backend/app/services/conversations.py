@@ -27,6 +27,28 @@ def _read(conversation: Conversation) -> ConversationRead:
     )
 
 
+async def append_message(
+    session: AsyncSession, conversation_id: uuid.UUID, *, role: str, content: str, run_id: uuid.UUID | None = None
+) -> Message:
+    """Add a message with the next sequence number. Caller commits.
+
+    The atomic increment row-locks the conversation until commit, serialising concurrent writers
+    (user posts and AI runs alike) into unique, gap-free sequences.
+    """
+    sequence = await session.scalar(
+        update(Conversation)
+        .where(Conversation.id == conversation_id)
+        .values(last_message_seq=Conversation.last_message_seq + 1, updated_at=func.now())
+        .returning(Conversation.last_message_seq)
+    )
+    if sequence is None:
+        raise NotFoundError("Conversation not found")
+    message = Message(conversation_id=conversation_id, sequence=sequence, role=role, content=content, run_id=run_id)
+    session.add(message)
+    await session.flush()
+    return message
+
+
 class ConversationService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -83,17 +105,7 @@ class ConversationService:
         )
 
     async def add_message(self, conversation_id: uuid.UUID, data: MessageCreate) -> MessageRead:
-        # Atomic increment row-locks the conversation until commit, serialising concurrent writers.
-        sequence = await self.session.scalar(
-            update(Conversation)
-            .where(Conversation.id == conversation_id)
-            .values(last_message_seq=Conversation.last_message_seq + 1, updated_at=func.now())
-            .returning(Conversation.last_message_seq)
-        )
-        if sequence is None:
-            raise NotFoundError("Conversation not found")
-        message = Message(conversation_id=conversation_id, sequence=sequence, role=data.role, content=data.content)
-        self.session.add(message)
+        message = await append_message(self.session, conversation_id, role=data.role, content=data.content)
         await self.session.commit()
         return MessageRead.model_validate(message)
 

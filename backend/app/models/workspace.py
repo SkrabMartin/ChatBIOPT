@@ -70,4 +70,8 @@ class Message(Base):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    # Set for assistant messages: the AI run that produced them (model, prompt version, usage, timing).
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("runs.id", ondelete="SET NULL"), nullable=True, unique=True
+    )
     created_at: Mapped[datetime] = _created_at()

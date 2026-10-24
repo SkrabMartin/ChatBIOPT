@@ -2,7 +2,7 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M03 Source Lookup.** Projects, conversations and messages are persisted, and a read-only PubMed literature search returns normalized, provenance-tracked records with links to the originals. There is no LLM yet: messages are saved, not answered (see the [roadmap](#roadmap)).
+> **Status: M04 LLM Gateway.** Projects and conversations are persisted, PubMed lookup returns provenance-tracked records, and conversations get streamed answers from a local model (Ollama), with every answer traced to a recorded run. Answers are **not yet grounded in retrieved sources**; retrieval-augmented answers with citations arrive in M05–M06 (see the [roadmap](#roadmap)).
 >
 > **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
 
@@ -40,6 +40,19 @@ docker compose up -d --build --wait
 
 The backend applies pending Alembic migrations on startup (`RUN_MIGRATIONS=0` disables this). Data lives in the `pgdata` volume and survives restarts; `docker compose down -v` deletes it. All ports bind to `127.0.0.1` only.
 
+### Local models (optional)
+
+The app runs without a model; chat answers then fail with a clear "model unavailable" message. To enable them, run Ollama in Compose and pull the models listed in `backend/model_registry.yaml`:
+
+```bash
+docker compose -f compose.yaml -f compose.ai.yaml up -d --build --wait                         # CPU
+docker compose -f compose.yaml -f compose.ai.yaml -f compose.gpu.yaml up -d --build --wait     # NVIDIA GPU
+docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull qwen2.5:1.5b         # default profile
+docker compose -f compose.yaml -f compose.ai.yaml exec ollama ollama pull qwen2.5:7b           # optional, ~6 GB (V)RAM
+```
+
+An Ollama already running on the host works too: plain `compose.yaml` points the backend at `host.docker.internal:11434`. **Settings** in the UI shows which models are pulled and lets each browser pick one.
+
 ## Local development
 
 Start only the database in Docker, run the backend and frontend natively:
@@ -74,6 +87,11 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `NCBI_API_KEY` | — | Optional; raises the PubMed rate limit from 3 to 10 requests/s |
 | `NCBI_TIMEOUT_S` | `10` | Per-request timeout for E-utilities |
 | `NCBI_MAX_ATTEMPTS` | `3` | Attempts per request for timeouts, connection errors, 429 and 5xx |
+| `MODEL_REGISTRY_PATH` | `backend/model_registry.yaml` | Model profiles: provider, model, context window, license, data policy, prices |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint for `provider: ollama` profiles |
+| `ALLOW_EXTERNAL_MODELS` | `false` | Must be `true` before any `data_policy: external` profile (hosted API) can be used |
+| `MODEL_READ_TIMEOUT_S` | `120` | Max silence between streamed chunks (includes model load on first use) |
+| `RUN_MAX_DURATION_S` | `300` | Hard limit for one answer |
 
 ## Checks
 
@@ -102,9 +120,9 @@ cd backend && RUN_LIVE_TESTS=1 pytest -m live
 ```json
 {
   "status": "ok",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0003", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0004", "latency_ms": 1.2 }
 }
 ```
 
@@ -162,6 +180,33 @@ Guarantees:
 - **PubMed's paging limit is enforced.** ESearch only pages through the first 10,000 hits, so `offset + limit` must not exceed 10,000.
 - **Every record carries its provenance:** `retrieved_at`, `raw_payload_sha256` and `normalizer_version`.
 
+### AI runs (model gateway)
+
+| Method & route | Purpose |
+|---|---|
+| `GET /api/v1/models` | Registry profiles with policy gate, live availability and resolved revision (Ollama digest) |
+| `POST /api/v1/chat/{conversation_id}/runs` | `{model_profile?}` → `202` with a queued run that answers the latest user message |
+| `GET /api/v1/runs/{id}/events` | Server-sent events: `status`, `delta {text}`, then one of `completed {run, message}`, `failed {error_code, message, run}`, `cancelled {run}` |
+| `GET /api/v1/runs/{id}` · `GET /api/v1/conversations/{id}/runs` | Run records |
+| `POST /api/v1/runs/{id}/cancel` | Stop an active run |
+
+How it works:
+
+- **Provider-neutral gateway.** Adapters exist for Ollama (`/api/chat` NDJSON) and for OpenAI-compatible servers (`/v1/chat/completions` SSE), which covers vLLM and hosted APIs. Models are declared in `model_registry.yaml`. Each profile records the exact model, context window, output limit, license, deployment, data policy and price. Ollama always receives `num_ctx`, because otherwise it silently truncates long prompts.
+- **Context.** Each run sends the versioned system prompt (`research-assistant-v1`) plus the newest messages that fit the context window (estimated at 3 characters per token). The prompt tells the model it has no retrieval and must not invent citations. If the latest question alone does not fit, the run fails with `context_too_long` instead of sending a truncated question.
+- **Traceability.** Every run records:
+  - the profile, model, resolved revision, prompt version and config hash;
+  - how many messages of context it used;
+  - input/output tokens, estimated cost, time to first token, total latency, and the finish reason or error;
+  - the trace ID.
+
+  The assistant message links to its run through `run_id`, and the UI labels it as model output that is not grounded in sources.
+- **No fake answers.** If the model is unavailable, times out, errors mid-stream, returns nothing or is cancelled, the run ends as `failed` or `cancelled` with an error code. In those cases no assistant message is stored, not even partial text. Failures stay visible after a reload and can be retried.
+- **Concurrency.** A partial unique index allows only one queued or running run per conversation (a second request returns `409`).
+- **Restarts.** Runs execute in an in-process task, separate from the HTTP request, so closing the browser does not stop them. Events can be resumed with `Last-Event-ID`. After a restart, finished runs replay their outcome from the database, and runs a crash left active are closed as `interrupted`.
+- **Data policy.** Profiles with `data_policy: external` cannot be used unless `ALLOW_EXTERNAL_MODELS=true`, and they also need their API-key variable set. The shipped registry contains only local and self-hosted profiles. To add a hosted model, copy the vLLM entry and set `deployment: cloud`, `data_policy: external`, `base_url`, `model`, `api_key_env` and the provider's prices.
+- **Rendering.** Model Markdown is rendered without raw HTML or images. Links appear as inert text, so an unverified URL never looks like a citation.
+
 ## Repository layout
 
 ```text
@@ -172,17 +217,21 @@ backend/
     db/          # declarative base, async engine/session
     models/      # SQLAlchemy models (workspace, literature sources)
     schemas/     # Pydantic API contracts
-    services/    # domain operations (projects, conversations, literature)
+    services/    # domain operations (projects, conversations, literature, runs)
     integrations/# external providers: shared rate limit/retry, PubMed client + parser
-  alembic/       # migrations (0001 baseline, 0002 workspace, 0003 literature)
+    ai/          # model registry, gateway adapters + router, versioned prompts, context builder, run executor
+  alembic/       # migrations (0001 baseline, 0002 workspace, 0003 literature, 0004 runs)
+  model_registry.yaml
   tests/         # fixtures/pubmed: recorded PubMed payloads (abstracts/affiliations replaced)
 frontend/
   src/
     app/         # providers, router, layout
     components/  # shared UI primitives
-    features/    # dashboard, projects, chat, literature
+    features/    # dashboard, projects, chat, literature, settings
     lib/api/     # typed fetch client + Zod response schemas
-compose.yaml
+compose.yaml       # db, backend, frontend
+compose.ai.yaml    # optional Ollama service
+compose.gpu.yaml   # optional NVIDIA GPU for Ollama
 .github/workflows/ci.yml
 ```
 
@@ -193,7 +242,7 @@ compose.yaml
 | **M01 Foundation** ✅ | Docker Compose, FastAPI, React, PostgreSQL, migrations, tests, CI |
 | **M02 Persistent Workspace** ✅ | Projects, conversations, messages; CRUD and UI |
 | **M03 Source Lookup** ✅ | Read-only PubMed search with stable IDs and provenance, no LLM |
-| M04 LLM Gateway | Local Ollama or optional cloud model, streaming, usage tracking |
+| **M04 LLM Gateway** ✅ | Local Ollama / OpenAI-compatible gateway, streaming runs, model registry, usage tracking |
 | M05 Evidence Ingestion | Metadata, open-access documents, chunking, versioning |
 | M06 Retrieval / RAG | Embeddings, hybrid FTS + vector search, validated citations |
 | M07 Quality & Evals | Gold dataset, reranking, citation support metrics, tracing |

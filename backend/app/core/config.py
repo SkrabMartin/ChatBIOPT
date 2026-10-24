@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
@@ -26,6 +27,16 @@ class Settings(BaseSettings):
     ncbi_timeout_s: float = Field(default=10.0, gt=0, le=60)
     ncbi_max_attempts: int = Field(default=3, ge=1, le=6)
     ncbi_backoff_base_s: float = Field(default=0.5, ge=0, le=10)
+
+    # Model gateway (M04). Prompts go only to profiles in the registry; `external` profiles additionally need
+    # ALLOW_EXTERNAL_MODELS=true, so nothing leaves the host by accident.
+    model_registry_path: Path = Path(__file__).resolve().parents[2] / "model_registry.yaml"
+    ollama_base_url: str = "http://localhost:11434"
+    allow_external_models: bool = False
+    model_connect_timeout_s: float = Field(default=5.0, gt=0, le=60)
+    # Max silence between streamed chunks (covers model load time on first use).
+    model_read_timeout_s: float = Field(default=120.0, gt=0, le=900)
+    run_max_duration_s: float = Field(default=300.0, gt=0, le=3600)
 
     @property
     def ncbi_requests_per_second(self) -> float:

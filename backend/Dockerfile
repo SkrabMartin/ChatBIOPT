@@ -15,7 +15,7 @@ RUN pip install .
 
 COPY app ./app
 COPY alembic ./alembic
-COPY alembic.ini docker-entrypoint.sh ./
+COPY alembic.ini docker-entrypoint.sh model_registry.yaml ./
 RUN pip install --no-deps . \
     && chmod +x docker-entrypoint.sh \
     && useradd --system --uid 10001 --no-create-home app

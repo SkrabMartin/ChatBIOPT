@@ -6,6 +6,7 @@ import { LiteratureRecordPage } from '../features/literature/LiteratureRecordPag
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ProjectPage } from '../features/projects/ProjectPage'
 import { ProjectsPage } from '../features/projects/ProjectsPage'
+import { SettingsPage } from '../features/settings/SettingsPage'
 import { ApiError } from '../lib/api/client'
 import { Layout } from './Layout'
 import { NotFoundPage } from './NotFoundPage'
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: 'projects/:projectId/conversations/:conversationId', element: <ConversationPage /> },
       { path: 'literature', element: <LiteraturePage /> },
       { path: 'literature/pubmed/:pmid', element: <LiteratureRecordPage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

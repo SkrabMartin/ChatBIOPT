@@ -28,6 +28,11 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-bioresearch}:${POSTGRES_PASSWORD:-bioresearch}@db:5432/${POSTGRES_DB:-bioresearch}
       NCBI_EMAIL: ${NCBI_EMAIL:-}
       NCBI_API_KEY: ${NCBI_API_KEY:-}
+      # Without compose.ai.yaml the backend looks for Ollama on the Docker host.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      ALLOW_EXTERNAL_MODELS: ${ALLOW_EXTERNAL_MODELS:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

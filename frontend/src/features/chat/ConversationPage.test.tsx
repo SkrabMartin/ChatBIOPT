@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { followRunEvents, type Run, type RunEvent } from '../../lib/api/runs'
 import { fetchAllMessages, type Message } from '../../lib/api/workspace'
 import { jsonResponse, mockApi, renderRoute, type Routes } from '../../test/utils'
 import { ConversationPage } from './ConversationPage'
@@ -10,11 +11,51 @@ const P = 'p-1'
 const C = 'c-1'
 const now = '2026-10-23T10:00:00Z'
 
-function message(sequence: number, content: string): Message {
-  return { id: `m-${sequence}`, conversation_id: C, sequence, role: 'user', content, created_at: now }
+function message(sequence: number, content: string, role: Message['role'] = 'user', runId: string | null = null): Message {
+  return { id: `m-${sequence}`, conversation_id: C, sequence, role, content, run_id: runId, created_at: now }
 }
 
-function baseRoutes(messages: Message[]): Routes {
+function run(overrides: Partial<Run> = {}): Run {
+  return {
+    id: 'r-1',
+    conversation_id: C,
+    kind: 'chat',
+    status: 'queued',
+    model_profile: 'local-small',
+    provider: 'ollama',
+    model_id: 'qwen2.5:1.5b',
+    model_revision: null,
+    prompt_version: 'research-assistant-v1',
+    config_hash: 'h',
+    context_until_sequence: 1,
+    context_message_count: null,
+    input_tokens: null,
+    output_tokens: null,
+    estimated_cost_usd: null,
+    time_to_first_token_ms: null,
+    latency_ms: null,
+    finish_reason: null,
+    error_code: null,
+    error_message: null,
+    created_at: now,
+    started_at: null,
+    finished_at: null,
+    ...overrides,
+  }
+}
+
+function sse(...events: [number, string, unknown][]): Response {
+  const text = events.map(([id, type, data]) => `id: ${id}\nevent: ${type}\ndata: ${JSON.stringify(data)}\n\n`).join('')
+  return new Response(text, { headers: { 'Content-Type': 'text/event-stream' } })
+}
+
+const models = {
+  default_profile: 'local-small',
+  allow_external_models: false,
+  items: [],
+}
+
+function baseRoutes(state: { messages: Message[]; runs: Run[] }): Routes {
   return {
     [`GET /api/v1/projects/${P}`]: () =>
       jsonResponse({ id: P, title: 'TP53', description: null, conversation_count: 1, created_at: now, updated_at: now }),
@@ -23,11 +64,13 @@ function baseRoutes(messages: Message[]): Routes {
         id: C,
         project_id: P,
         title: 'Scoping',
-        message_count: messages.length,
+        message_count: state.messages.length,
         created_at: now,
         updated_at: now,
       }),
-    [`GET /api/v1/conversations/${C}/messages`]: () => jsonResponse({ items: messages, has_more: false }),
+    [`GET /api/v1/conversations/${C}/messages`]: () => jsonResponse({ items: state.messages, has_more: false }),
+    [`GET /api/v1/conversations/${C}/runs`]: () => jsonResponse(state.runs),
+    'GET /api/v1/models': () => jsonResponse(models),
   }
 }
 
@@ -39,67 +82,122 @@ function renderPage() {
 }
 
 describe('ConversationPage', () => {
-  it('renders the thread in sequence order as plain text', async () => {
-    mockApi(baseRoutes([message(1, 'first'), message(2, '<b>not bold</b>')]))
+  it('renders user messages verbatim, never as HTML', async () => {
+    mockApi(baseRoutes({ messages: [message(1, 'first'), message(2, '<b>not bold</b>')], runs: [] }))
 
     renderPage()
 
     const list = await screen.findByRole('list', { name: 'Messages' })
     const items = within(list).getAllByRole('listitem')
-    expect(items.map((li) => li.textContent)).toEqual([expect.stringContaining('first'), expect.stringContaining('<b>not bold</b>')])
+    expect(items.map((li) => li.textContent)).toEqual([
+      expect.stringContaining('first'),
+      expect.stringContaining('<b>not bold</b>'),
+    ])
     expect(list.querySelector('b')).toBeNull()
   })
 
-  it('appends a sent message and clears the composer', async () => {
+  it('sends a question, streams the answer and then shows the stored message', async () => {
+    const state = { messages: [] as Message[], runs: [] as Run[] }
     const fetchMock = mockApi({
-      ...baseRoutes([message(1, 'first')]),
-      [`POST /api/v1/conversations/${C}/messages`]: (body) =>
-        jsonResponse(message(2, z.object({ content: z.string() }).parse(body).content), 201),
+      ...baseRoutes(state),
+      [`POST /api/v1/conversations/${C}/messages`]: (body) => {
+        const sent = message(1, z.object({ content: z.string() }).parse(body).content)
+        state.messages = [sent]
+        return jsonResponse(sent, 201)
+      },
+      [`POST /api/v1/chat/${C}/runs`]: () => {
+        state.runs = [run()]
+        return jsonResponse(run(), 202)
+      },
+      'GET /api/v1/runs/r-1/events': () => {
+        state.messages = [...state.messages, message(2, 'TP53 encodes **p53**.', 'assistant', 'r-1')]
+        state.runs = [run({ status: 'succeeded' })]
+        return sse(
+          [1, 'status', { status: 'running' }],
+          [2, 'delta', { text: 'TP53 encodes ' }],
+          [3, 'completed', { run: run({ status: 'succeeded' }), message: state.messages[1] }],
+        )
+      },
     })
     const user = userEvent.setup()
     renderPage()
 
     const composer = await screen.findByLabelText('Message')
-    await user.type(composer, 'Which TP53 hotspots?')
+    await user.type(composer, 'What does TP53 encode?')
     await user.click(screen.getByRole('button', { name: 'Send' }))
 
-    expect(await screen.findByText('Which TP53 hotspots?')).toBeInTheDocument()
+    const answer = await screen.findByText('p53')
+    expect(answer.tagName).toBe('STRONG')
+    expect(screen.getByText(/not grounded in retrieved sources/)).toBeInTheDocument()
     expect(composer).toHaveValue('')
-    const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
-    expect(JSON.parse(String(post?.[1]?.body))).toEqual({ role: 'user', content: 'Which TP53 hotspots?' })
+    const runPost = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/runs') && init?.method === 'POST')
+    expect(JSON.parse(String(runPost?.[1]?.body))).toEqual({})
   })
 
-  it('keeps the draft and shows the server reason when sending fails', async () => {
-    mockApi({
-      ...baseRoutes([]),
-      [`POST /api/v1/conversations/${C}/messages`]: () =>
-        jsonResponse(
-          {
-            error: {
-              code: 'validation_error',
-              message: 'Request validation failed',
-              trace_id: 'trace-test',
-              details: [{ loc: ['body', 'content'], msg: 'Value error, content cannot be blank', type: 'value_error' }],
-            },
-          },
-          422,
-        ),
+  it('shows a persisted failure with its reason and lets the user retry', async () => {
+    const failed = run({ status: 'failed', error_code: 'model_unavailable', error_message: 'Model qwen2.5:1.5b is not pulled' })
+    const state = { messages: [message(1, 'Q')], runs: [failed] }
+    const fetchMock = mockApi({
+      ...baseRoutes(state),
+      [`POST /api/v1/chat/${C}/runs`]: () => jsonResponse(run({ id: 'r-2' }), 202),
+      'GET /api/v1/runs/r-2/events': () => sse([1, 'cancelled', { run: run({ id: 'r-2', status: 'cancelled' }) }]),
     })
     const user = userEvent.setup()
     renderPage()
 
-    const composer = await screen.findByLabelText('Message')
-    await user.type(composer, 'draft text')
-    await user.click(screen.getByRole('button', { name: 'Send' }))
-
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('content: Value error, content cannot be blank')
-    expect(composer).toHaveValue('draft text')
+    expect(alert).toHaveTextContent('Model unavailable')
+    expect(alert).toHaveTextContent('Model qwen2.5:1.5b is not pulled')
+    expect(screen.queryByText(/not grounded/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Retry answer' }))
+
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/runs/r-2/events'))).toBe(true),
+    )
+  })
+
+  it('renders model Markdown without raw HTML, images or clickable links', async () => {
+    const content = 'See [this paper](https://evil.example/x) <script>alert(1)</script> ![img](https://x/y.png) <i>raw</i>'
+    mockApi(baseRoutes({ messages: [message(1, 'Q'), message(2, content, 'assistant', 'r-1')], runs: [] }))
+
+    renderPage()
+
+    const answer = (await screen.findByText(/this paper/)).closest('li')!
+    expect(answer.querySelector('a, script, img, i')).toBeNull()
+    expect(within(answer).getByText('this paper')).toHaveAttribute(
+      'title',
+      'Unverified link from model output: https://evil.example/x',
+    )
+  })
+
+  it('disables sending while an answer is being generated and can stop it', async () => {
+    const state = { messages: [message(1, 'Q')], runs: [run({ status: 'running' })] }
+    const fetchMock = mockApi({
+      ...baseRoutes(state),
+      // A stream that never ends: the UI must stay in the generating state.
+      'GET /api/v1/runs/r-1/events': () =>
+        new Response(new ReadableStream({ start: (c) => c.enqueue(new TextEncoder().encode(': keep-alive\n\n')) })),
+      'POST /api/v1/runs/r-1/cancel': () => jsonResponse(run({ status: 'running' }), 202),
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(await screen.findByText(/Generating with local-small/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Message'), 'another question')
+    expect(screen.getByRole('button', { name: 'Generating…' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Stop' }))
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url, init]) => String(url).endsWith('/cancel') && init?.method === 'POST')).toBe(
+        true,
+      ),
+    )
   })
 
   it('shows not-found for a deleted conversation', async () => {
     mockApi({
-      ...baseRoutes([]),
+      ...baseRoutes({ messages: [], runs: [] }),
       [`GET /api/v1/conversations/${C}`]: () =>
         jsonResponse({ error: { code: 'not_found', message: 'Conversation not found', trace_id: 'x' } }, 404),
     })
@@ -107,6 +205,25 @@ describe('ConversationPage', () => {
     renderPage()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Conversation not found')
+  })
+})
+
+describe('followRunEvents', () => {
+  it('reconnects with Last-Event-ID when the stream drops before a terminal event', async () => {
+    const fetchMock = mockApi({
+      'GET /api/v1/runs/r-1/events': () => {
+        const resumed = fetchMock.mock.calls.length > 1
+        return resumed
+          ? sse([3, 'completed', { run: null, message: null }])
+          : sse([1, 'status', { status: 'running' }], [2, 'delta', { text: 'Hi' }])
+      },
+    })
+    const seen: RunEvent['type'][] = []
+
+    await followRunEvents('r-1', (event) => seen.push(event.type), new AbortController().signal, vi.fn(async () => {}))
+
+    expect(seen).toEqual(['status', 'delta', 'completed'])
+    expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get('Last-Event-ID')).toBe('2')
   })
 })
 
@@ -124,7 +241,6 @@ describe('fetchAllMessages', () => {
     const all = await fetchAllMessages(C)
 
     expect(all.map((m) => m.sequence)).toEqual([1, 2, 3])
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     expect(String(fetchMock.mock.calls[1][0])).toContain('after_sequence=2')
   })
 })

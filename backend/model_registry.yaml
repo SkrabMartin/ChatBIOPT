@@ -1,0 +1,62 @@
+# Model registry: every model the app may call, with the facts needed to choose and audit it.
+# The resolved revision (Ollama digest / served model id) is recorded on every run.
+#
+# Fields
+#   provider        ollama | openai_compatible (vLLM, or any hosted OpenAI-compatible API)
+#   model           provider-side model name
+#   base_url        optional; defaults to OLLAMA_BASE_URL for ollama
+#   api_key_env     optional env var holding a bearer token (openai_compatible)
+#   deployment      local | self_hosted | cloud
+#   data_policy     local    -> prompts stay on infrastructure you run
+#                   external -> prompts leave it; only usable when ALLOW_EXTERNAL_MODELS=true
+#   context_window  tokens; also sent to Ollama as num_ctx so prompts are not silently truncated
+#   price_*_per_mtok USD per million tokens, used for cost estimates (0 for self-hosted)
+#
+# To add a hosted model, copy the vLLM entry, set deployment: cloud, data_policy: external, its base_url,
+# model name, api_key_env and prices from the provider's current documentation.
+
+default_profile: local-small
+
+profiles:
+  local-small:
+    label: Qwen2.5 1.5B Instruct (Ollama)
+    provider: ollama
+    model: qwen2.5:1.5b
+    deployment: local
+    data_policy: local
+    context_window: 8192
+    max_output_tokens: 1024
+    temperature: 0.2
+    license: Apache-2.0
+    price_input_per_mtok: 0
+    price_output_per_mtok: 0
+    notes: Fast on CPU; fine for drafting and simple questions, weak at multi-step reasoning.
+
+  local-general:
+    label: Qwen2.5 7B Instruct (Ollama)
+    provider: ollama
+    model: qwen2.5:7b
+    deployment: local
+    data_policy: local
+    context_window: 8192
+    max_output_tokens: 1024
+    temperature: 0.2
+    license: Apache-2.0
+    price_input_per_mtok: 0
+    price_output_per_mtok: 0
+    notes: Needs ~6 GB of (V)RAM at 4-bit; noticeably better answers than the 1.5B model.
+
+  vllm-general:
+    label: Qwen2.5 7B Instruct (vLLM)
+    provider: openai_compatible
+    model: Qwen/Qwen2.5-7B-Instruct
+    base_url: http://localhost:8001/v1
+    deployment: self_hosted
+    data_policy: local
+    context_window: 32768
+    max_output_tokens: 1024
+    temperature: 0.2
+    license: Apache-2.0
+    price_input_per_mtok: 0
+    price_output_per_mtok: 0
+    notes: For a separate GPU server running `vllm serve Qwen/Qwen2.5-7B-Instruct --port 8001`.

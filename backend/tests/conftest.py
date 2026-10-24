@@ -2,6 +2,7 @@ import os
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 import httpx
 import psycopg
@@ -14,7 +15,7 @@ from sqlalchemy.engine import make_url
 
 from app.core.config import Settings
 from app.main import create_app
-from tests.fakes import FakeNCBI
+from tests.fakes import FakeNCBI, FakeOllama, FakeUpstreams
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -55,18 +56,28 @@ def migrated_database(alembic_config: Config, database_url: str) -> Iterator[str
     command.downgrade(alembic_config, "base")
 
 
-def make_settings(database_url: str) -> Settings:
+def make_settings(database_url: str, **overrides: Any) -> Settings:
     # No backoff delay in tests; retry *behaviour* is still exercised.
-    return Settings(_env_file=None, app_env="test", database_url=database_url, ncbi_backoff_base_s=0)
+    values: dict[str, Any] = {
+        "app_env": "test",
+        "database_url": database_url,
+        "ncbi_backoff_base_s": 0,
+        "ollama_base_url": "http://ollama.test:11434",
+        **overrides,
+    }
+    return Settings(_env_file=None, **values)
 
 
 @asynccontextmanager
-async def running_app(settings: Settings, ncbi: FakeNCBI | None = None) -> AsyncIterator[AsyncClient]:
+async def running_app(
+    settings: Settings, ncbi: FakeNCBI | None = None, ollama: FakeOllama | None = None
+) -> AsyncIterator[AsyncClient]:
     """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start.
 
-    Outbound HTTP always goes to a fake: tests never reach the real NCBI service.
+    Outbound HTTP always goes to fakes: tests never reach NCBI or a model server.
     """
-    app = create_app(settings, http_transport=httpx.MockTransport((ncbi or FakeNCBI()).handle))
+    upstreams = FakeUpstreams(ncbi or FakeNCBI(), ollama or FakeOllama())
+    app = create_app(settings, http_transport=httpx.MockTransport(upstreams.handle))
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -79,12 +90,21 @@ def ncbi() -> FakeNCBI:
 
 
 @pytest.fixture
-def start_app(migrated_database: str, ncbi: FakeNCBI) -> Callable[[], AbstractAsyncContextManager[AsyncClient]]:
-    return lambda: running_app(make_settings(migrated_database), ncbi)
+def ollama() -> FakeOllama:
+    return FakeOllama()
+
+
+StartApp = Callable[..., AbstractAsyncContextManager[AsyncClient]]
 
 
 @pytest.fixture
-async def client(start_app: Callable[[], AbstractAsyncContextManager[AsyncClient]]) -> AsyncIterator[AsyncClient]:
+def start_app(migrated_database: str, ncbi: FakeNCBI, ollama: FakeOllama) -> StartApp:
+    """Start an app on the migrated test DB; keyword arguments override settings."""
+    return lambda **overrides: running_app(make_settings(migrated_database, **overrides), ncbi, ollama)
+
+
+@pytest.fixture
+async def client(start_app: StartApp) -> AsyncIterator[AsyncClient]:
     async with start_app() as c:
         yield c
 

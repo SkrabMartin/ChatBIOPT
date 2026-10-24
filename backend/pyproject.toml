@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.10",
     "httpx>=0.28",
     "defusedxml>=0.7",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +24,7 @@ dev = [
     "ruff>=0.14",
     "mypy>=1.18",
     "types-defusedxml",
+    "types-PyYAML",
 ]
 
 [build-system]
