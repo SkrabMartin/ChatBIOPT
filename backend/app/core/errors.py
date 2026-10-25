@@ -18,9 +18,10 @@ class AppError(Exception):
     status_code = 400
     code = "bad_request"
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, headers: dict[str, str] | None = None) -> None:
         super().__init__(message)
         self.message = message
+        self.headers = headers
 
 
 class NotFoundError(AppError):
@@ -28,14 +29,36 @@ class NotFoundError(AppError):
     code = "not_found"
 
 
+class UnauthenticatedError(AppError):
+    status_code = 401
+    code = "unauthenticated"
+
+
+class InvalidCredentialsError(UnauthenticatedError):
+    code = "invalid_credentials"
+
+
 class ForbiddenError(AppError):
     status_code = 403
     code = "forbidden"
 
 
+class CsrfError(ForbiddenError):
+    code = "csrf_failed"
+
+
+class RateLimitedError(AppError):
+    status_code = 429
+    code = "rate_limited"
+
+
 class ConflictError(AppError):
     status_code = 409
     code = "conflict"
+
+
+class LastOwnerError(ConflictError):
+    code = "last_owner"
 
 
 class UpstreamError(AppError):
@@ -67,7 +90,10 @@ def error_response(status_code: int, code: str, message: str, details: Any = Non
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error(_: Request, exc: AppError) -> JSONResponse:
-        return error_response(exc.status_code, exc.code, exc.message)
+        response = error_response(exc.status_code, exc.code, exc.message)
+        if exc.headers:
+            response.headers.update(exc.headers)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:

@@ -3,8 +3,9 @@ import uuid
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.service import Actor
 from app.core.errors import NotFoundError
-from app.models import Conversation, Message, Project
+from app.models import Conversation, Message, Project, User
 from app.schemas.workspace import (
     ConversationCreate,
     ConversationRead,
@@ -27,8 +28,20 @@ def _read(conversation: Conversation) -> ConversationRead:
     )
 
 
+def _message(message: Message, author_name: str | None) -> MessageRead:
+    read = MessageRead.model_validate(message)
+    read.author_name = author_name
+    return read
+
+
 async def append_message(
-    session: AsyncSession, conversation_id: uuid.UUID, *, role: str, content: str, run_id: uuid.UUID | None = None
+    session: AsyncSession,
+    conversation_id: uuid.UUID,
+    *,
+    role: str,
+    content: str,
+    run_id: uuid.UUID | None = None,
+    author_id: uuid.UUID | None = None,
 ) -> Message:
     """Add a message with the next sequence number. Caller commits.
 
@@ -43,7 +56,14 @@ async def append_message(
     )
     if sequence is None:
         raise NotFoundError("Conversation not found")
-    message = Message(conversation_id=conversation_id, sequence=sequence, role=role, content=content, run_id=run_id)
+    message = Message(
+        conversation_id=conversation_id,
+        sequence=sequence,
+        role=role,
+        content=content,
+        run_id=run_id,
+        author_id=author_id,
+    )
     session.add(message)
     await session.flush()
     return message
@@ -92,22 +112,26 @@ class ConversationService:
     async def list_messages(self, conversation_id: uuid.UUID, *, after_sequence: int, limit: int) -> MessagePage:
         await self._load(conversation_id)
         # Fetch one extra row to learn whether another page exists without a COUNT.
-        messages = list(
-            await self.session.scalars(
-                select(Message)
+        rows = list(
+            await self.session.execute(
+                select(Message, User.display_name)
+                .outerjoin(User, User.id == Message.author_id)
                 .where(Message.conversation_id == conversation_id, Message.sequence > after_sequence)
                 .order_by(Message.sequence)
                 .limit(limit + 1)
             )
         )
         return MessagePage(
-            items=[MessageRead.model_validate(m) for m in messages[:limit]], has_more=len(messages) > limit
+            items=[_message(m, name) for m, name in rows[:limit]],
+            has_more=len(rows) > limit,
         )
 
-    async def add_message(self, conversation_id: uuid.UUID, data: MessageCreate) -> MessageRead:
-        message = await append_message(self.session, conversation_id, role=data.role, content=data.content)
+    async def add_message(self, conversation_id: uuid.UUID, data: MessageCreate, actor: Actor) -> MessageRead:
+        message = await append_message(
+            self.session, conversation_id, role=data.role, content=data.content, author_id=actor.id
+        )
         await self.session.commit()
-        return MessageRead.model_validate(message)
+        return _message(message, actor.display_name)
 
     async def _load(self, conversation_id: uuid.UUID) -> Conversation:
         conversation = await self.session.get(Conversation, conversation_id)

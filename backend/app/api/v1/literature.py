@@ -3,6 +3,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Path, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.deps import rate_limit
 from app.db.session import get_session
 from app.integrations.pubmed.client import PubMedClient
 from app.schemas.literature import (
@@ -37,13 +38,23 @@ _UPSTREAM_ERRORS: dict[int | str, dict[str, Any]] = {
 }
 
 
-@router.post("/search", response_model=LiteratureSearchResponse, responses=_UPSTREAM_ERRORS)
+@router.post(
+    "/search",
+    response_model=LiteratureSearchResponse,
+    responses=_UPSTREAM_ERRORS,
+    dependencies=[Depends(rate_limit("provider"))],
+)
 async def search_literature(data: LiteratureSearchRequest, literature: Literature) -> LiteratureSearchResponse:
     """Read-only PubMed search. Every returned record is persisted with its raw payload and checksum."""
     return await literature.search(data)
 
 
-@router.get("/{source}/{identifier}", response_model=LiteratureRecord, responses=_UPSTREAM_ERRORS)
+@router.get(
+    "/{source}/{identifier}",
+    response_model=LiteratureRecord,
+    responses=_UPSTREAM_ERRORS,
+    dependencies=[Depends(rate_limit("provider"))],
+)
 async def get_literature_record(
     source: LiteratureSource,
     identifier: Annotated[str, Path(pattern=PMID_PATTERN.pattern, description="PubMed ID")],

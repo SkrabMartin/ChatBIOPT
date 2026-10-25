@@ -33,6 +33,10 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       ALLOW_EXTERNAL_MODELS: ${ALLOW_EXTERNAL_MODELS:-false}
       FULLTEXT_ALLOWED_LICENSES: ${FULLTEXT_ALLOWED_LICENSES:-CC0,CC-BY,CC-BY-SA,CC-BY-ND,CC-BY-NC,CC-BY-NC-SA,CC-BY-NC-ND}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      # Trust X-Forwarded-For from the nginx frontend, so per-IP sign-in limits see real clients. Safe only
+      # because the backend port is published on 127.0.0.1; widen it and clients could spoof their IP.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - objects:/srv/backend/var/objects
     extra_hosts:

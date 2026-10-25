@@ -48,6 +48,8 @@ class ProjectRead(BaseModel):
     title: str
     description: str | None
     conversation_count: int
+    # The caller's role in this project.
+    role: Literal["viewer", "editor", "owner"]
     created_at: datetime
     updated_at: datetime
 
@@ -91,6 +93,9 @@ class MessageRead(BaseModel):
     content: str
     # The AI run that produced an assistant message; null for user messages.
     run_id: uuid.UUID | None
+    # Who wrote a user message; null for assistant messages and messages from before accounts existed.
+    author_id: uuid.UUID | None
+    author_name: str | None = None
     created_at: datetime
 
 

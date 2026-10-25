@@ -2,9 +2,9 @@
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
-> **Status: M08 Entity Intelligence.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. An optional LLM reranker, per-stage run timings and opt-in OpenTelemetry tracing are available. Retrieval and answer quality are measured on hand-labelled development and held-out test sets, and results are browsable on the **Evaluations** page (see [Evaluation](#evaluation)). Genes can be resolved from a symbol or identifier within an explicitly chosen organism (NCBI Gene, UniProtKB, Ensembl) and pinned to a project. Each gene is stored with provenance and typed relations: `encodes` to its proteins and, for human genes, `associated_with_disease` from Open Targets (see [Entity intelligence](#entity-intelligence)).
+> **Status: M09 Security & Multi-user.** Projects and conversations are persisted, and PubMed lookup returns provenance-tracked records. Publications can be ingested into a project's evidence library: versioned abstracts, license-gated open-access full text, chunks and embeddings. Chat answers are grounded in that library through hybrid keyword + vector retrieval. The server validates every citation, splits answers into claims on an evidence board for human review, and abstains when no passage is relevant. An optional LLM reranker, per-stage run timings and opt-in OpenTelemetry tracing are available. Retrieval and answer quality are measured on hand-labelled development and held-out test sets, and results are browsable on the **Evaluations** page (see [Evaluation](#evaluation)). Genes can be resolved from a symbol or identifier within an explicitly chosen organism (NCBI Gene, UniProtKB, Ensembl) and pinned to a project. Each gene is stored with provenance and typed relations: `encodes` to its proteins and, for human genes, `associated_with_disease` from Open Targets (see [Entity intelligence](#entity-intelligence)). Users sign in; every project is private to its members (owner / editor / viewer), and expensive operations are rate-limited per user (see [Accounts and access control](#accounts-and-access-control)).
 >
-> **Single-user, local mode.** There is no authentication until M09. Never expose the API or UI beyond `localhost`.
+> **Self-hosted, not hardened for the open internet.** Accounts, sessions and project ACLs are in place, but there is no TLS termination, MFA or external identity provider. Put it behind HTTPS (and set `SESSION_COOKIE_SECURE=true`) before exposing it beyond `localhost`.
 
 ## Stack
 
@@ -30,7 +30,12 @@ Requirements: Docker with Compose v2.
 ```bash
 cp .env.example .env        # optional: defaults work for local development
 docker compose up -d --build --wait
+# first account (admin manages accounts; claims projects created before accounts existed)
+docker compose exec backend python -m app.cli create-user --email you@example.org --name "You" --admin \
+  --claim-unowned-projects    # prompts for a password (>= 12 characters)
 ```
+
+Further accounts are created by an admin on the **Users** page.
 
 | URL | What |
 |---|---|
@@ -112,6 +117,11 @@ The backend reads configuration from environment variables or `backend/.env`:
 | `UNIPROT_BASE_URL` / `UNIPROT_REQUESTS_PER_SECOND` | UniProt REST / `5` | Protein entries and gene cross-references |
 | `ENSEMBL_BASE_URL` / `ENSEMBL_REQUESTS_PER_SECOND` | Ensembl REST / `10` | Reciprocal Ensembl ↔ NCBI Gene checks (Ensembl allows 15/s) |
 | `OPENTARGETS_URL` / `OPENTARGETS_REQUESTS_PER_SECOND` | Open Targets GraphQL / `5` | Target–disease associations (human only) |
+| `SESSION_COOKIE_SECURE` | `false` | Mark the session cookie `Secure`; set `true` whenever the UI is served over HTTPS |
+| `SESSION_TTL_HOURS` / `SESSION_IDLE_HOURS` | `336` / `72` | Absolute session lifetime / sign-out after this long unused |
+| `RATE_LIMIT_LOGIN_PER_MINUTE` | `10` | Sign-in attempts per client IP and per email |
+| `RATE_LIMIT_MODEL_PER_MINUTE` | `30` | Chat runs and evidence searches per user |
+| `RATE_LIMIT_PROVIDER_PER_MINUTE` | `60` | PubMed, entity provider and ingestion requests per user |
 | `ENTITY_DISEASE_ASSOCIATIONS` | `10` | Strongest Open Targets associations stored per human gene (0 disables) |
 
 ## Checks
@@ -126,7 +136,7 @@ cd frontend
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose stack and smoke-tests the UI, `/api/v1/health` and workspace persistence across a restart through nginx.
+CI (`.github/workflows/ci.yml`) runs the same checks, then builds the Compose stack and smoke-tests the UI, `/api/v1/health`, sign-in (CLI-created user, CSRF header, cookie) and workspace persistence across a restart through nginx.
 
 Backend tests never call NCBI or the entity providers: they use recorded fixtures and a fake transport. A separate contract test checks the real PubMed API and runs only when you opt in:
 
@@ -141,9 +151,9 @@ cd backend && RUN_LIVE_TESTS=1 pytest -m live
 ```json
 {
   "status": "ok",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "environment": "development",
-  "database": { "status": "ok", "migration_revision": "0008", "latency_ms": 1.2 }
+  "database": { "status": "ok", "migration_revision": "0009", "latency_ms": 1.2 }
 }
 ```
 
@@ -176,7 +186,7 @@ Contract rules:
              "details": [{ "loc": ["body", "title"], "msg": "String should have at least 1 character", "type": "string_too_short" }] } }
 ```
 
-Codes are `validation_error` (422), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `taxon_mismatch` (409), `upstream_unavailable` (502), `upstream_invalid_response` (502), `upstream_timeout` (504) and `internal_error` (500).
+Codes are `validation_error` (422), `unauthenticated` (401), `invalid_credentials` (401), `forbidden` (403), `csrf_failed` (403), `not_found` (404), `method_not_allowed` (405), `conflict` (409), `last_owner` (409), `rate_limited` (429, with `Retry-After`), `taxon_mismatch` (409), `upstream_unavailable` (502), `upstream_invalid_response` (502), `upstream_timeout` (504) and `internal_error` (500).
 
 ### Literature (PubMed, read-only)
 
@@ -307,6 +317,40 @@ flowchart LR
 - **Reranking (optional, off by default).** A rerank profile in `model_registry.yaml` (`llm-listwise-small`, `llm-listwise-general`) asks a registry model to grade up to 20 fused candidates 0–3 in one JSON-mode call (`llm-listwise-v1`); passages are fenced as untrusted data. Hits are re-sorted by grade, ties keep RRF order, and the grade is stored as `rerank_score`. If the model fails or returns no usable grades, the fused order is kept and the run shows `Reranking skipped: …`. See [Evaluation](#evaluation) for why it is off.
 - **Identifier validation.** PMIDs, PMCIDs, DOIs and URLs in an answer that do not belong to the run's evidence sources are replaced with `[unverified reference removed]` and counted in `citation_stats.unverified_identifiers`.
 
+### Accounts and access control
+
+| Method & route | Purpose |
+|---|---|
+| `POST /api/v1/auth/login` | `{email, password}` → user; sets the session cookie. Public, rate-limited per IP and per email |
+| `POST /api/v1/auth/logout` | Revoke this session (server side) |
+| `GET /api/v1/auth/me` | The signed-in user |
+| `POST /api/v1/auth/password` | `{current_password, new_password}`; signs out your other sessions |
+| `GET` / `POST /api/v1/projects/{id}/members` | List members (any member) / add an existing user by `{email, role}` (owner) |
+| `PATCH` / `DELETE /api/v1/projects/{id}/members/{user_id}` | Change role / remove (owner); any member may remove themself (leave) |
+| `GET` / `POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/{id}` | Admins: list, create, rename, reset password, grant admin, disable |
+
+```mermaid
+flowchart LR
+    R[request] --> C{CSRF header on POST/PATCH/DELETE?}
+    C -->|no| F1[403 csrf_failed]
+    C -->|yes| S{valid session?}
+    S -->|no| U[401 unauthenticated]
+    S -->|yes| P{member of the resource's project?}
+    P -->|no| N[404 not found]
+    P -->|yes| O{role sufficient?}
+    O -->|no| F2[403 forbidden]
+    O -->|yes| H[handler: queries scoped to the project]
+```
+
+- **Authentication.** Local accounts with Argon2id password hashes (minimum 12 characters). Signing in creates a server-side session; the browser gets an opaque random token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` with `SESSION_COOKIE_SECURE=true`), and only the token's SHA-256 is stored. Sessions end on logout, after 14 days, after 72 hours unused, when the password changes (other sessions) and when an admin disables the account or resets its password. Unknown email and wrong password fail identically and take the same time.
+- **CSRF.** `POST`, `PATCH` and `DELETE` (sign-in included) must carry `X-Requested-With: BioResearchAI`. A cross-site page cannot add that header without a CORS preflight, which the API never approves.
+- **Authorization.** Only `/health` and `/auth/login` are public. A project and everything in it (conversations, messages, runs and their SSE streams, run evidence, claims, ingestion jobs, pinned genes) is visible only to its members. Non-members get `404`, so they cannot tell whether a resource exists; members lacking the role get `403`. Roles: **viewer** reads; **editor** also chats, runs models, edits the library, reviews claims and pins genes; **owner** also edits or deletes the project and manages members. A project always keeps at least one owner (`409 last_owner`).
+- **Shared data.** Library sources, documents and chunks are shared between projects (a PubMed record is stored once). They are readable only if linked to a project you are a member of, and retrieval only searches the requested project's library after checking membership. Literature search, entity resolution and stored entities (public reference data from NCBI, UniProt and Open Targets) and evaluation reports are available to every signed-in user; which projects pinned an entity is not exposed.
+- **Admins** manage accounts only. Being an admin grants no access to other users' projects.
+- **Rate limits.** Per user: model calls (chat runs, evidence search) and external-provider calls (PubMed, entity providers, adding sources). Per client IP and per email: sign-in attempts. Exceeding a limit returns `429 rate_limited` with `Retry-After`. Limits are in-process, matching the single-worker deployment; several API replicas would need a shared store.
+- **Upgrading from M08.** Projects created before accounts existed have no members and are invisible until someone claims them: `python -m app.cli create-user … --claim-unowned-projects`.
+- **Regression suite.** `tests/test_security.py` classifies every API route (a new route fails until it is classified and declares its role) and probes a fully populated project as an anonymous client, without the CSRF header, as a non-member, as a viewer and as an editor.
+
 ### Entity intelligence
 
 | Method & route | Purpose |
@@ -346,6 +390,7 @@ cd backend
 python -m app.evals.retrieval --project <project-id> --dataset ../evals/datasets/retrieval-test-v0.1.jsonl \
   --rerank llm-listwise-small --rerank llm-listwise-general --out ../evals/reports/retrieval-test-v0.1.json
 # answers: no-RAG vs grounded vs grounded + reranker, through the real API, scored by an LLM judge
+BIORESEARCH_EMAIL=you@example.org BIORESEARCH_PASSWORD=… \
 python -m app.evals.answers --api http://127.0.0.1:8080/api/v1 --project <project-id> \
   --dataset ../evals/datasets/answers-test-v0.1.jsonl --model local-general --judge local-general \
   --rerank llm-listwise-general --out ../evals/reports/answers-test-v0.1.json
@@ -422,11 +467,13 @@ Caveats: 45 hand-picked items cannot show general coverage; they pin down the ru
 backend/
   app/
     api/v1/      # routers (HTTP parsing only)
-    core/        # settings, JSON logging, request-context middleware, error envelope
+    core/        # settings, JSON logging, request-context middleware, error envelope, per-key rate limiter
+    auth/        # accounts, sessions (Argon2id, hashed tokens), CSRF check, project-role authorization dependencies
     db/          # declarative base, async engine/session
     models/      # SQLAlchemy models (workspace, literature, evidence, retrieval, entities)
     schemas/     # Pydantic API contracts
-    services/    # domain operations (projects, conversations, literature, runs)
+    services/    # domain operations (projects, members, conversations, literature, runs)
+    cli.py       # create-user (first admin, claim projects from before accounts)
     integrations/# external providers: shared rate limit/retry, PubMed, Europe PMC, NCBI Gene, UniProt, Ensembl, Open Targets
     entities/    # entity resolver (organism-explicit), gene import with typed edges and provenance
     ai/          # model registry, gateway adapters + router, versioned prompts, context builder, run executor
@@ -435,7 +482,7 @@ backend/
     workers/     # ingestion worker (separate process, DB job queue)
     retrieval/   # embeddings (spaces, batching), hybrid keyword + vector search with RRF, LLM listwise reranker
     evals/       # metrics with bootstrap CIs, retrieval / answer / entity runners, LLM judge, paired compare, report store
-  alembic/       # migrations (0001 baseline … 0008 entities)
+  alembic/       # migrations (0001 baseline … 0009 auth)
   model_registry.yaml
   tests/         # fixtures: recorded PubMed payloads (abstracts/affiliations replaced), Europe PMC CC BY full text,
                  # recorded NCBI Gene / UniProt / Ensembl / Open Targets responses
@@ -443,7 +490,7 @@ frontend/
   src/
     app/         # providers, router, layout
     components/  # shared UI primitives
-    features/    # dashboard, projects, chat, literature, evidence, entities, evaluations, settings
+    features/    # auth, account, admin, dashboard, projects + members, chat, literature, evidence, entities, evaluations, settings
     lib/api/     # typed fetch client + Zod response schemas
 compose.yaml       # db, backend, worker, frontend
 compose.ai.yaml    # optional Ollama service
@@ -467,7 +514,7 @@ evals/
 | **M06 Retrieval / RAG** ✅ | Embeddings, hybrid FTS + vector search (RRF), grounded answers with validated citations, evidence board, retrieval eval |
 | **M07 Quality & Evals** ✅ | Held-out test sets, answer eval with LLM judge, reranker ablation, paired compare, identifier validation, stage timings, OpenTelemetry tracing |
 | **M08 Entity Intelligence** ✅ | Organism-explicit gene resolution (NCBI Gene, UniProtKB, Ensembl), typed edges with provenance, Open Targets disease associations, species/identifier eval |
-| M09 Security & Multi-user | Auth, ACLs, data isolation, rate limits |
+| **M09 Security & Multi-user** ✅ | Accounts and server-side sessions, CSRF defence, project roles (owner / editor / viewer), isolation of every project resource, per-user rate limits, cross-project security regression suite |
 | M10 Analysis Lab | Object storage, validated job workers |
 | M11 Research Missions | Durable multi-step workflows with approvals and budgets |
 | M12 Model Research | LoRA/SFT experiments behind measured release gates |

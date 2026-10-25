@@ -6,6 +6,7 @@ import { ApiError } from '../../lib/api/client'
 import {
   DESCRIPTION_MAX_LENGTH,
   TITLE_MAX_LENGTH,
+  canEdit,
   useConversations,
   useCreateConversation,
   useDeleteProject,
@@ -17,6 +18,8 @@ import { formatDateTime, plural } from '../../lib/format'
 import { ProjectEntities } from '../entities/ProjectEntities'
 import { EvidenceLibrary } from '../evidence/EvidenceLibrary'
 import { EvidenceSearch } from '../evidence/EvidenceSearch'
+import { MembersCard } from './MembersCard'
+import { RoleBadge } from './RoleBadge'
 
 function EditProjectForm({ project, onDone }: { project: Project; onDone: () => void }) {
   const [title, setTitle] = useState(project.title)
@@ -61,7 +64,7 @@ function EditProjectForm({ project, onDone }: { project: Project; onDone: () => 
   )
 }
 
-function Conversations({ projectId }: { projectId: string }) {
+function Conversations({ projectId, editable }: { projectId: string; editable: boolean }) {
   const conversations = useConversations(projectId)
   const create = useCreateConversation(projectId)
   const [title, setTitle] = useState('')
@@ -78,22 +81,24 @@ function Conversations({ projectId }: { projectId: string }) {
   return (
     <Card>
       <h2 className="mb-3 text-base font-semibold text-slate-900">Conversations</h2>
-      <form onSubmit={submit} className="mb-4 flex gap-2">
-        <label htmlFor="conversation-title" className="sr-only">
-          New conversation title
-        </label>
-        <TextInput
-          id="conversation-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={TITLE_MAX_LENGTH}
-          placeholder="New conversation title"
-          required
-        />
-        <Button type="submit" disabled={create.isPending || !title.trim()} className="shrink-0">
-          Start
-        </Button>
-      </form>
+      {editable ? (
+        <form onSubmit={submit} className="mb-4 flex gap-2">
+          <label htmlFor="conversation-title" className="sr-only">
+            New conversation title
+          </label>
+          <TextInput
+            id="conversation-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={TITLE_MAX_LENGTH}
+            placeholder="New conversation title"
+            required
+          />
+          <Button type="submit" disabled={create.isPending || !title.trim()} className="shrink-0">
+            Start
+          </Button>
+        </form>
+      ) : null}
       {create.error ? <ErrorNotice error={create.error} title="Could not start conversation" /> : null}
       {conversations.isPending ? (
         <p className="text-sm text-slate-500">Loading…</p>
@@ -147,6 +152,10 @@ export function ProjectPage() {
     remove.mutate(undefined, { onSuccess: () => navigate('/projects') })
   }
 
+  const { role } = project.data
+  const isOwner = role === 'owner'
+  const editable = canEdit(role)
+
   return (
     <div className="space-y-6">
       <nav className="text-sm text-slate-500">
@@ -161,7 +170,10 @@ export function ProjectPage() {
         ) : (
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900">{project.data.title}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-semibold text-slate-900">{project.data.title}</h1>
+                <RoleBadge role={role} />
+              </div>
               {project.data.description ? (
                 <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{project.data.description}</p>
               ) : null}
@@ -169,27 +181,30 @@ export function ProjectPage() {
                 Created {formatDateTime(project.data.created_at)} · updated {formatDateTime(project.data.updated_at)}
               </p>
             </div>
-            <div className="flex shrink-0 gap-2">
-              <Button variant="secondary" onClick={() => setEditing(true)}>
-                Edit
-              </Button>
-              <Button variant="danger" onClick={handleDelete} disabled={remove.isPending}>
-                Delete
-              </Button>
-            </div>
+            {isOwner ? (
+              <div className="flex shrink-0 gap-2">
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                  Edit
+                </Button>
+                <Button variant="danger" onClick={handleDelete} disabled={remove.isPending}>
+                  Delete
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
         {remove.error ? <ErrorNotice error={remove.error} title="Could not delete project" /> : null}
       </Card>
-      <EvidenceLibrary projectId={projectId} />
+      <EvidenceLibrary projectId={projectId} editable={editable} />
       <div className="flex justify-end">
         <Link to={`/projects/${projectId}/evidence-board`} className="text-sm text-teal-700 hover:underline">
           Open evidence board →
         </Link>
       </div>
-      <EvidenceSearch projectId={projectId} />
-      <ProjectEntities projectId={projectId} />
-      <Conversations projectId={projectId} />
+      {editable ? <EvidenceSearch projectId={projectId} /> : null}
+      <ProjectEntities projectId={projectId} editable={editable} />
+      <Conversations projectId={projectId} editable={editable} />
+      <MembersCard projectId={projectId} isOwner={isOwner} />
     </div>
   )
 }

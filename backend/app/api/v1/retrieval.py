@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.gateway.base import GatewayError
 from app.ai.gateway.router import ModelRouter
 from app.api.v1.runs import get_model_router
-from app.core.errors import AppError, NotFoundError
+from app.auth.deps import CurrentActor, authorize_project, rate_limit, requires
+from app.core.errors import AppError
 from app.db.session import get_session
-from app.models import Project
 from app.retrieval.embeddings import EmbeddingSpace, resolve_space
 from app.retrieval.rerank import resolve_reranker
 from app.retrieval.search import retrieve
@@ -28,14 +28,22 @@ router = APIRouter()
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
-@router.post("/retrieval/query", response_model=RetrievalResponse, tags=["retrieval"])
+@router.post(
+    "/retrieval/query",
+    response_model=RetrievalResponse,
+    tags=["retrieval"],
+    dependencies=[Depends(rate_limit("model"))],
+)
 async def retrieval_query(
-    data: RetrievalQuery, session: Session, models: Annotated[ModelRouter, Depends(get_model_router)]
+    data: RetrievalQuery,
+    session: Session,
+    models: Annotated[ModelRouter, Depends(get_model_router)],
+    actor: CurrentActor,
 ) -> RetrievalResponse:
     """Evidence passages from one project's library. Degraded modes (no embedding model) are reported in
     `warnings`, never silently."""
-    if await session.get(Project, data.project_id) is None:
-        raise NotFoundError("Project not found")
+    # The project comes from the body, so it is authorized here rather than by a path dependency.
+    await authorize_project(session, actor, data.project_id, "viewer")
     space: EmbeddingSpace | None = None
     space_error: str | None = None
     if data.mode != "keyword":
@@ -105,6 +113,7 @@ async def retrieval_query(
     response_model=list[ClaimRead],
     tags=["evidence board"],
     responses={200: {"content": {"text/csv": {}}}},
+    dependencies=[Depends(requires("project_id", "viewer"))],
 )
 async def list_claims(
     project_id: uuid.UUID,
@@ -123,7 +132,12 @@ async def list_claims(
     return claims
 
 
-@router.patch("/claims/{claim_id}", response_model=ClaimRead, tags=["evidence board"])
+@router.patch(
+    "/claims/{claim_id}",
+    response_model=ClaimRead,
+    tags=["evidence board"],
+    dependencies=[Depends(requires("claim_id", "editor"))],
+)
 async def review_claim(claim_id: uuid.UUID, data: ClaimReview, session: Session) -> ClaimRead:
     """Record a human judgement of whether the cited passages support the claim."""
     return await ClaimService(session).review(claim_id, data)

@@ -163,7 +163,7 @@ function ResolutionResult({
   )
 }
 
-function PinnedEntity({ item, projectId }: { item: ProjectEntity; projectId: string }) {
+function PinnedEntity({ item, projectId, editable }: { item: ProjectEntity; projectId: string; editable: boolean }) {
   const remove = useRemoveProjectEntity(projectId)
   const { entity } = item
   const associations = associationStatusSchema.safeParse(entity.attributes.disease_associations)
@@ -217,15 +217,17 @@ function PinnedEntity({ item, projectId }: { item: ProjectEntity; projectId: str
           </ul>
         ) : null}
       </div>
-      <Button variant="danger" onClick={() => remove.mutate(entity.id)} disabled={remove.isPending}>
-        Remove
-      </Button>
+      {editable ? (
+        <Button variant="danger" onClick={() => remove.mutate(entity.id)} disabled={remove.isPending}>
+          Remove
+        </Button>
+      ) : null}
     </li>
   )
 }
 
 /** Resolve genes within an explicitly chosen organism and pin them, with their typed relations, to the project. */
-export function ProjectEntities({ projectId }: { projectId: string }) {
+export function ProjectEntities({ projectId, editable }: { projectId: string; editable: boolean }) {
   const organisms = useOrganisms()
   const entities = useProjectEntities(projectId)
   const resolve = useResolveEntity()
@@ -252,53 +254,57 @@ export function ProjectEntities({ projectId }: { projectId: string }) {
           associations come from Open Targets and are available for human genes only.
         </p>
       </div>
-      <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_14rem_11rem_auto] md:items-end">
-        <Field label="Gene or identifier" htmlFor="entity-query">
-          <TextInput
-            id="entity-query"
-            value={query}
-            maxLength={64}
-            placeholder="TP53, ENSG00000141510, HGNC:11998, P04637…"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </Field>
-        <Field label="Organism" htmlFor="entity-organism">
-          <select
-            id="entity-organism"
-            value={taxon}
-            onChange={(e) => setTaxon(e.target.value)}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-          >
-            <option value="">Choose organism…</option>
-            {organisms.data?.map((o) => (
-              <option key={o.taxon_id} value={o.taxon_id}>
-                {o.scientific_name} ({o.common_name})
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Input type" htmlFor="entity-kind">
-          <select
-            id="entity-kind"
-            value={kind}
-            onChange={(e) => setKind(e.target.value as 'auto' | InputKind)}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-          >
-            {(['auto', ...INPUT_KINDS] as const).map((k) => (
-              <option key={k} value={k}>
-                {KIND_LABEL[k]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Button type="submit" disabled={resolve.isPending || !query.trim() || !taxon}>
-          {resolve.isPending ? 'Resolving…' : 'Resolve'}
-        </Button>
-      </form>
-      {organisms.error ? <ErrorNotice error={organisms.error} title="Could not load organisms" /> : null}
-      {resolve.error ? <ErrorNotice error={resolve.error} title="Could not resolve" /> : null}
-      {resolve.data ? (
-        <ResolutionResult resolution={resolve.data} projectId={projectId} pinnedGeneIds={pinnedGeneIds} />
+      {editable ? (
+        <>
+          <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_14rem_11rem_auto] md:items-end">
+            <Field label="Gene or identifier" htmlFor="entity-query">
+              <TextInput
+                id="entity-query"
+                value={query}
+                maxLength={64}
+                placeholder="TP53, ENSG00000141510, HGNC:11998, P04637…"
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </Field>
+            <Field label="Organism" htmlFor="entity-organism">
+              <select
+                id="entity-organism"
+                value={taxon}
+                onChange={(e) => setTaxon(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+              >
+                <option value="">Choose organism…</option>
+                {organisms.data?.map((o) => (
+                  <option key={o.taxon_id} value={o.taxon_id}>
+                    {o.scientific_name} ({o.common_name})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Input type" htmlFor="entity-kind">
+              <select
+                id="entity-kind"
+                value={kind}
+                onChange={(e) => setKind(e.target.value as 'auto' | InputKind)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
+              >
+                {(['auto', ...INPUT_KINDS] as const).map((k) => (
+                  <option key={k} value={k}>
+                    {KIND_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Button type="submit" disabled={resolve.isPending || !query.trim() || !taxon}>
+              {resolve.isPending ? 'Resolving…' : 'Resolve'}
+            </Button>
+          </form>
+          {organisms.error ? <ErrorNotice error={organisms.error} title="Could not load organisms" /> : null}
+          {resolve.error ? <ErrorNotice error={resolve.error} title="Could not resolve" /> : null}
+          {resolve.data ? (
+            <ResolutionResult resolution={resolve.data} projectId={projectId} pinnedGeneIds={pinnedGeneIds} />
+          ) : null}
+        </>
       ) : null}
       <div>
         <h3 className="text-sm font-semibold text-slate-700">In this project</h3>
@@ -306,7 +312,7 @@ export function ProjectEntities({ projectId }: { projectId: string }) {
         {entities.data?.length === 0 ? <p className="text-sm text-slate-500">No genes yet.</p> : null}
         <ul className="divide-y divide-slate-100">
           {entities.data?.map((item) => (
-            <PinnedEntity key={item.entity.id} item={item} projectId={projectId} />
+            <PinnedEntity key={item.entity.id} item={item} projectId={projectId} editable={editable} />
           ))}
         </ul>
       </div>

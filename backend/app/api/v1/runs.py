@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.gateway.router import ModelRouter
 from app.ai.runner import RunManager
+from app.auth.deps import rate_limit, requires
 from app.db.session import get_session
 from app.schemas.runs import ModelList, ModelProfileRead, RerankProfileRead, RunCreate, RunEvidenceRead, RunRead
 from app.schemas.workspace import MessageRead
@@ -82,30 +83,49 @@ async def list_models(model_router: Annotated[ModelRouter, Depends(get_model_rou
     response_model=RunRead,
     status_code=status.HTTP_202_ACCEPTED,
     tags=["runs"],
+    dependencies=[Depends(requires("conversation_id", "editor")), Depends(rate_limit("model"))],
 )
 async def create_chat_run(conversation_id: uuid.UUID, data: RunCreate, runs: Runs) -> RunRead:
     """Start generating an answer to the conversation's latest user message. Follow it via the events stream."""
     return await runs.create_chat_run(conversation_id, data)
 
 
-@router.get("/conversations/{conversation_id}/runs", response_model=list[RunRead], tags=["runs"])
+@router.get(
+    "/conversations/{conversation_id}/runs",
+    response_model=list[RunRead],
+    tags=["runs"],
+    dependencies=[Depends(requires("conversation_id", "viewer"))],
+)
 async def list_conversation_runs(
     conversation_id: uuid.UUID, runs: Runs, limit: Annotated[int, Query(ge=1, le=100)] = 20
 ) -> list[RunRead]:
     return await runs.list_for_conversation(conversation_id, limit=limit)
 
 
-@router.get("/runs/{run_id}", response_model=RunRead, tags=["runs"])
+@router.get(
+    "/runs/{run_id}", response_model=RunRead, tags=["runs"], dependencies=[Depends(requires("run_id", "viewer"))]
+)
 async def get_run(run_id: uuid.UUID, runs: Runs) -> RunRead:
     return await runs.get(run_id)
 
 
-@router.post("/runs/{run_id}/cancel", response_model=RunRead, status_code=status.HTTP_202_ACCEPTED, tags=["runs"])
+@router.post(
+    "/runs/{run_id}/cancel",
+    response_model=RunRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["runs"],
+    dependencies=[Depends(requires("run_id", "editor"))],
+)
 async def cancel_run(run_id: uuid.UUID, runs: Runs) -> RunRead:
     return await runs.cancel(run_id)
 
 
-@router.get("/runs/{run_id}/evidence", response_model=list[RunEvidenceRead], tags=["runs"])
+@router.get(
+    "/runs/{run_id}/evidence",
+    response_model=list[RunEvidenceRead],
+    tags=["runs"],
+    dependencies=[Depends(requires("run_id", "viewer"))],
+)
 async def run_evidence(run_id: uuid.UUID, runs: Runs) -> list[RunEvidenceRead]:
     """Passages given to a grounded run as [E#] labels, with ranks and whether the answer cited them."""
     return await runs.evidence(run_id)
@@ -119,6 +139,7 @@ def _sse(event_type: str, data: dict[str, Any], event_id: int | None = None) -> 
 @router.get(
     "/runs/{run_id}/events",
     tags=["runs"],
+    dependencies=[Depends(requires("run_id", "viewer"))],
     response_class=StreamingResponse,
     responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events"}},
 )

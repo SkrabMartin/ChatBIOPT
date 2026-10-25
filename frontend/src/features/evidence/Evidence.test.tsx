@@ -97,7 +97,7 @@ describe('EvidenceLibrary', () => {
         ),
     })
 
-    renderRoute(<EvidenceLibrary projectId={P} />, { path: '/projects/:projectId', url: `/projects/${P}` })
+    renderRoute(<EvidenceLibrary projectId={P} editable />, { path: '/projects/:projectId', url: `/projects/${P}` })
 
     expect(await screen.findByRole('link', { name: 'Full text v1 · CC-BY · 41 chunks' })).toHaveAttribute(
       'href',
@@ -118,7 +118,7 @@ describe('EvidenceLibrary', () => {
       },
     })
 
-    renderRoute(<EvidenceLibrary projectId={P} />, { path: '/projects/:projectId', url: `/projects/${P}` })
+    renderRoute(<EvidenceLibrary projectId={P} editable />, { path: '/projects/:projectId', url: `/projects/${P}` })
 
     expect(await screen.findByText('queued')).toBeInTheDocument()
     expect(await screen.findByText('PubMed has no record with PMID 29416795', {}, { timeout: 4000 })).toBeInTheDocument()
@@ -132,8 +132,8 @@ describe('AddToProject', () => {
       'GET /api/v1/projects': () =>
         jsonResponse({
           items: [
-            { id: 'p-1', title: 'First', description: null, conversation_count: 0, created_at: now, updated_at: now },
-            { id: 'p-2', title: 'Second', description: null, conversation_count: 0, created_at: now, updated_at: now },
+            { id: 'p-1', title: 'First', description: null, conversation_count: 0, created_at: now, updated_at: now, role: 'owner' },
+            { id: 'p-2', title: 'Second', description: null, conversation_count: 0, created_at: now, updated_at: now, role: 'editor' },
           ],
           total: 2,
           limit: 200,

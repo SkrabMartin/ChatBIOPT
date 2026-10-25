@@ -88,7 +88,7 @@ describe('ProjectEntities', () => {
       },
     })
     const user = userEvent.setup()
-    renderRoute(<ProjectEntities projectId="p-1" />, { path: '/projects/:projectId', url: '/projects/p-1' })
+    renderRoute(<ProjectEntities projectId="p-1" editable />, { path: '/projects/:projectId', url: '/projects/p-1' })
 
     await user.type(screen.getByLabelText('Gene or identifier'), 'p40')
     const submit = screen.getByRole('button', { name: 'Resolve' })
@@ -131,7 +131,7 @@ describe('ProjectEntities', () => {
         ),
     })
     const user = userEvent.setup()
-    renderRoute(<ProjectEntities projectId="p-1" />, { path: '/projects/:projectId', url: '/projects/p-1' })
+    renderRoute(<ProjectEntities projectId="p-1" editable />, { path: '/projects/:projectId', url: '/projects/p-1' })
 
     await user.type(screen.getByLabelText('Gene or identifier'), '7157')
     await screen.findByRole('option', { name: 'Mus musculus (house mouse)' })

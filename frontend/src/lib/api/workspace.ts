@@ -9,6 +9,13 @@ export const MESSAGE_MAX_LENGTH = 20000
 const pageSchema = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), total: z.number(), limit: z.number(), offset: z.number() })
 
+export const PROJECT_ROLES = ['viewer', 'editor', 'owner'] as const
+export const projectRoleSchema = z.enum(PROJECT_ROLES)
+export type ProjectRole = z.infer<typeof projectRoleSchema>
+
+/** Viewers can only read; editors and owners can change project content. */
+export const canEdit = (role: ProjectRole) => role !== 'viewer'
+
 export const projectSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -16,6 +23,8 @@ export const projectSchema = z.object({
   conversation_count: z.number(),
   created_at: z.string(),
   updated_at: z.string(),
+  /** The caller's membership role in this project. */
+  role: projectRoleSchema,
 })
 export type Project = z.infer<typeof projectSchema>
 
@@ -37,6 +46,9 @@ export const messageSchema = z.object({
   content: z.string(),
   /** The AI run that produced an assistant message; null for user messages. */
   run_id: z.string().nullable(),
+  /** Who posted a user message; null for assistant and legacy messages. */
+  author_id: z.string().nullable(),
+  author_name: z.string().nullable(),
   created_at: z.string(),
 })
 export type Message = z.infer<typeof messageSchema>

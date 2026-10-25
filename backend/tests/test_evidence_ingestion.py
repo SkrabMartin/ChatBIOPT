@@ -1,5 +1,6 @@
 """End-to-end ingestion: API enqueues, the worker (same code as the Docker worker) processes, API reads back."""
 
+from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any
 
@@ -273,6 +274,24 @@ async def test_source_is_shared_between_projects_without_duplicate_documents(
         ("abstract", 1),
         ("fulltext", 1),
     ]
+
+
+async def test_jobs_are_scheduled_on_the_database_clock(
+    client: AsyncClient, worker: IngestionWorker, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A worker host clock behind the database's must not leave freshly queued jobs looking "not yet due"."""
+
+    class SlowClock(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> "SlowClock":
+            return super().now(tz) - timedelta(minutes=5)  # type: ignore[return-value]
+
+    monkeypatch.setattr("app.workers.ingestion.datetime", SlowClock)
+    project_id = await new_project(client)
+    await add(client, project_id, OA_PMID)
+
+    assert await drain(worker) == 1
+    assert (await library(client, project_id))["items"][0]["latest_job"]["status"] == "succeeded"
 
 
 @pytest.mark.parametrize(

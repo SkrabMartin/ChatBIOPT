@@ -28,6 +28,10 @@ const errorEnvelopeSchema = z.object({
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
+/** Header the backend requires on every state-changing request (CSRF defence for the session cookie). */
+export const CSRF_HEADER = 'X-Requested-With'
+export const CSRF_VALUE = 'BioResearchAI'
+
 export interface RequestOptions {
   body?: unknown
   signal?: AbortSignal
@@ -43,11 +47,13 @@ function describeValidation(details: { loc: (string | number)[]; msg: string }[]
 async function send(method: Method, path: string, options: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (method !== 'GET') headers[CSRF_HEADER] = CSRF_VALUE
   let response: Response
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
+      credentials: 'same-origin',
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: options.signal,
     })

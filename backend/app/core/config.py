@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     ingestion_retry_delay_s: float = Field(default=30.0, ge=0)
     worker_heartbeat_path: Path = Path("var/worker-heartbeat")
 
+    # Authentication and rate limits (M09). Sessions are opaque random tokens; only their SHA-256 is stored.
+    session_cookie_name: str = "bioresearch_session"
+    # Set true whenever the UI is served over HTTPS (the cookie is then never sent over plain HTTP).
+    session_cookie_secure: bool = False
+    session_ttl_hours: float = Field(default=336.0, gt=0, le=24 * 90)  # absolute lifetime (14 days)
+    session_idle_hours: float = Field(default=72.0, gt=0, le=24 * 90)  # revoked after this long unused
+    # Requests per minute. Login: per client IP and per email. Others: per user.
+    rate_limit_login_per_minute: int = Field(default=10, ge=1, le=10_000)
+    rate_limit_model_per_minute: int = Field(default=30, ge=1, le=10_000)  # chat runs, retrieval search
+    rate_limit_provider_per_minute: int = Field(default=60, ge=1, le=10_000)  # PubMed, entity providers, ingestion
+
     # Entity intelligence (M08). Rates stay below each provider's documented or fair-use limits.
     uniprot_base_url: str = "https://rest.uniprot.org"
     uniprot_requests_per_second: float = Field(default=5.0, gt=0, le=20)

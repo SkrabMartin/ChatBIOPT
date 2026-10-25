@@ -16,10 +16,10 @@ import sys
 import time
 import uuid
 from contextlib import AsyncExitStack
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import httpx
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import __version__
@@ -39,6 +39,12 @@ from app.storage.object_store import FilesystemObjectStore
 logger = logging.getLogger(__name__)
 
 
+async def _db_now(session: AsyncSession) -> datetime:
+    """The database clock: job times are compared with `now()` in SQL, so they must come from the same clock."""
+    now: datetime = (await session.execute(select(func.now()))).scalar_one()
+    return now
+
+
 class IngestionWorker:
     def __init__(
         self, session_factory: async_sessionmaker[AsyncSession], pipeline: IngestionPipeline, settings: Settings
@@ -48,7 +54,9 @@ class IngestionWorker:
         self._settings = settings
 
     async def claim(self) -> uuid.UUID | None:
-        now = datetime.now(UTC)
+        # Scheduling uses the database clock only: `run_after` defaults to the DB's now(), and the worker's host
+        # clock may differ from it (a worker running ahead or behind would skip or prematurely take jobs).
+        now = func.now()
         async with self._session_factory() as session:
             candidate = (
                 select(IngestionJob.id)
@@ -129,7 +137,8 @@ class IngestionWorker:
         job = await self._reload(session, job_id)
         if job.attempts < job.max_attempts:
             job.status = "queued"
-            job.run_after = datetime.now(UTC) + timedelta(seconds=self._settings.ingestion_retry_delay_s * job.attempts)
+            delay = timedelta(seconds=self._settings.ingestion_retry_delay_s * job.attempts)
+            job.run_after = await _db_now(session) + delay
             job.locked_until = None
             job.error_code, job.error_message = code, f"Attempt {job.attempts} failed: {message}; will retry"
             await session.commit()
@@ -143,7 +152,7 @@ class IngestionWorker:
         job.status = status
         job.error_code, job.error_message = code, message
         job.locked_until = None
-        job.finished_at = datetime.now(UTC)
+        job.finished_at = await _db_now(session)
         await session.commit()
         logger.info(
             "ingestion job finished",

@@ -13,8 +13,21 @@ const project = {
   conversation_count: 0,
   created_at: now,
   updated_at: now,
+  role: 'owner',
 }
 const emptyPage = { items: [], total: 0, limit: 50, offset: 0 }
+const me = { id: 'u-1', email: 'ada@example.org', display_name: 'Ada', is_admin: false, created_at: now }
+const member = { user_id: 'u-1', email: 'ada@example.org', display_name: 'Ada', role: 'owner', added_at: now }
+
+/** Everything the project page loads besides the project itself. */
+const workspaceRoutes = {
+  'GET /api/v1/auth/me': () => jsonResponse(me),
+  'GET /api/v1/projects/p-1/conversations': () => jsonResponse(emptyPage),
+  'GET /api/v1/projects/p-1/sources': () => jsonResponse({ items: [], pending_jobs: [] }),
+  'GET /api/v1/projects/p-1/entities': () => jsonResponse([]),
+  'GET /api/v1/entities/organisms': () => jsonResponse([]),
+  'GET /api/v1/projects/p-1/members': () => jsonResponse([member]),
+}
 
 describe('ProjectsPage', () => {
   it('shows the validation reason returned by the server', async () => {
@@ -60,11 +73,8 @@ describe('ProjectPage', () => {
 
   it('deletes only after confirmation, then leaves the page', async () => {
     const fetchMock = mockApi({
+      ...workspaceRoutes,
       'GET /api/v1/projects/p-1': () => jsonResponse(project),
-      'GET /api/v1/projects/p-1/conversations': () => jsonResponse(emptyPage),
-      'GET /api/v1/projects/p-1/sources': () => jsonResponse({ items: [], pending_jobs: [] }),
-      'GET /api/v1/projects/p-1/entities': () => jsonResponse([]),
-      'GET /api/v1/entities/organisms': () => jsonResponse([]),
       'DELETE /api/v1/projects/p-1': () => jsonResponse(null, 204),
     })
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
@@ -79,5 +89,22 @@ describe('ProjectPage', () => {
     expect(await screen.findByText('navigated away')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/projects')
     expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('hides project management and write controls from viewers', async () => {
+    mockApi({
+      ...workspaceRoutes,
+      'GET /api/v1/projects/p-1': () => jsonResponse({ ...project, role: 'viewer' }),
+      'GET /api/v1/projects/p-1/members': () => jsonResponse([{ ...member, role: 'viewer' }]),
+    })
+
+    renderRoute(<ProjectPage />, { path: '/projects/:projectId', url: '/projects/p-1' })
+
+    expect(await screen.findByRole('button', { name: 'Leave project' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('New conversation title')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Member email')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Role for ada@example.org')).not.toBeInTheDocument()
   })
 })

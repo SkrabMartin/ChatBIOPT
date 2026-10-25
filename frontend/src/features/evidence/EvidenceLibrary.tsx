@@ -47,7 +47,7 @@ function DocumentBadges({ item }: { item: LibraryItem }) {
   )
 }
 
-function LibraryRow({ item, projectId }: { item: LibraryItem; projectId: string }) {
+function LibraryRow({ item, projectId, editable }: { item: LibraryItem; projectId: string; editable: boolean }) {
   const refresh = useRefreshSource(projectId)
   const remove = useRemoveSource(projectId)
   const job = item.latest_job
@@ -70,19 +70,27 @@ function LibraryRow({ item, projectId }: { item: LibraryItem; projectId: string 
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {job ? <JobStatus job={job} /> : null}
-          <Button variant="secondary" onClick={() => refresh.mutate(item.source.id)} disabled={busy || refresh.isPending}>
-            Refresh
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              if (window.confirm('Remove this source from the project? Stored documents are kept.'))
-                remove.mutate(item.source.id)
-            }}
-            disabled={remove.isPending}
-          >
-            Remove
-          </Button>
+          {editable ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => refresh.mutate(item.source.id)}
+                disabled={busy || refresh.isPending}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (window.confirm('Remove this source from the project? Stored documents are kept.'))
+                    remove.mutate(item.source.id)
+                }}
+                disabled={remove.isPending}
+              >
+                Remove
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
       <DocumentBadges item={item} />
@@ -97,7 +105,7 @@ function LibraryRow({ item, projectId }: { item: LibraryItem; projectId: string 
   )
 }
 
-export function EvidenceLibrary({ projectId }: { projectId: string }) {
+export function EvidenceLibrary({ projectId, editable }: { projectId: string; editable: boolean }) {
   const library = useLibrary(projectId)
 
   return (
@@ -129,7 +137,7 @@ export function EvidenceLibrary({ projectId }: { projectId: string }) {
             </li>
           ))}
           {library.data.items.map((item) => (
-            <LibraryRow key={item.source.id} item={item} projectId={projectId} />
+            <LibraryRow key={item.source.id} item={item} projectId={projectId} editable={editable} />
           ))}
         </ul>
       )}

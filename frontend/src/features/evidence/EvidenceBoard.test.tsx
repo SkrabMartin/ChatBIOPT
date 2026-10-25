@@ -53,7 +53,15 @@ describe('EvidenceBoardPage', () => {
     const claims = [claim(), claim({ id: 'cl-2', claim_text: 'They respond to a new drug.', support_state: 'uncited', evidence: [] })]
     const fetchMock = mockApi({
       'GET /api/v1/projects/p-1': () =>
-        jsonResponse({ id: 'p-1', title: 'TP53', description: null, conversation_count: 1, created_at: now, updated_at: now }),
+        jsonResponse({
+          id: 'p-1',
+          title: 'TP53',
+          description: null,
+          conversation_count: 1,
+          created_at: now,
+          updated_at: now,
+          role: 'editor',
+        }),
       'GET /api/v1/projects/p-1/claims': () => jsonResponse(claims),
       'PATCH /api/v1/claims/cl-1': (body) => {
         const { review_status } = z.object({ review_status: z.string() }).parse(body)

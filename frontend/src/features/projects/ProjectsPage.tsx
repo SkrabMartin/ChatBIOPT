@@ -10,6 +10,7 @@ import {
   type Project,
 } from '../../lib/api/workspace'
 import { formatDateTime, plural } from '../../lib/format'
+import { RoleBadge } from './RoleBadge'
 
 function CreateProjectForm() {
   const [title, setTitle] = useState('')
@@ -71,7 +72,10 @@ export function ProjectList({ projects }: { projects: Project[] }) {
       {projects.map((project) => (
         <li key={project.id}>
           <Link to={`/projects/${project.id}`} className="block rounded-md px-2 py-3 hover:bg-slate-50">
-            <p className="font-medium text-slate-900">{project.title}</p>
+            <p className="flex items-center gap-2">
+              <span className="font-medium text-slate-900">{project.title}</span>
+              <RoleBadge role={project.role} />
+            </p>
             {project.description ? <p className="line-clamp-2 text-sm text-slate-600">{project.description}</p> : null}
             <p className="mt-1 text-xs text-slate-400">
               {plural(project.conversation_count, 'conversation')} · updated {formatDateTime(project.updated_at)}

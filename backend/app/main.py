@@ -16,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.rate_limit import SlidingWindowLimiter
 from app.core.tracing import configure_tracing
 from app.db.session import create_engine
 from app.entities.service import EntityProviders
@@ -38,6 +39,8 @@ def create_app(settings: Settings | None = None, *, http_transport: httpx.AsyncB
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_engine(settings)
         app.state.engine = engine
+        app.state.settings = settings
+        app.state.rate_limiter = SlidingWindowLimiter()
         app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
         user_agent = f"BioResearchAI/{__version__} ({settings.ncbi_email or 'no contact configured'})"
         http = httpx.AsyncClient(

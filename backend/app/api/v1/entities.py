@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.deps import rate_limit, requires
 from app.core.config import Settings, get_settings
 from app.db.session import get_session
 from app.entities.resolver import ORGANISMS, RESOLVER_VERSION
@@ -61,7 +62,12 @@ async def list_organisms() -> list[OrganismRead]:
     return [OrganismRead(**o.__dict__) for o in ORGANISMS]
 
 
-@router.post("/entities/resolve", response_model=ResolutionRead, responses=_UPSTREAM_ERRORS)
+@router.post(
+    "/entities/resolve",
+    response_model=ResolutionRead,
+    responses=_UPSTREAM_ERRORS,
+    dependencies=[Depends(rate_limit("provider"))],
+)
 async def resolve_entity(data: ResolveRequest, entities: Entities) -> ResolutionRead:
     """Resolve a gene symbol, alias or identifier within one organism. Read-only: nothing is stored."""
     result = await entities.resolve(data.query, data.taxon_id, None if data.kind == "auto" else data.kind)
@@ -95,7 +101,11 @@ async def resolve_entity(data: ResolveRequest, entities: Entities) -> Resolution
 
 @router.get("/entities/{entity_id}", response_model=EntityDetail)
 async def get_entity(entity_id: uuid.UUID, entities: Entities) -> EntityDetail:
-    """A stored entity with its cross-references, provenance and typed edges."""
+    """A stored entity with its cross-references, provenance and typed edges.
+
+    Entities are shared public reference data (NCBI Gene, UniProtKB, Open Targets): any signed-in user may read
+    them. Which projects pinned an entity is not exposed here.
+    """
     entity, edges = await entities.detail(entity_id)
     return EntityDetail(
         **EntityRead.model_validate(entity).model_dump(),
@@ -116,7 +126,11 @@ async def get_entity(entity_id: uuid.UUID, entities: Entities) -> EntityDetail:
     )
 
 
-@router.get("/projects/{project_id}/entities", response_model=list[ProjectEntityRead])
+@router.get(
+    "/projects/{project_id}/entities",
+    response_model=list[ProjectEntityRead],
+    dependencies=[Depends(requires("project_id", "viewer"))],
+)
 async def list_project_entities(project_id: uuid.UUID, entities: Entities) -> list[ProjectEntityRead]:
     return [_project_entity(link, entity) for link, entity in await entities.project_entities(project_id)]
 
@@ -126,6 +140,7 @@ async def list_project_entities(project_id: uuid.UUID, entities: Entities) -> li
     response_model=ProjectEntityRead,
     status_code=status.HTTP_201_CREATED,
     responses={**_UPSTREAM_ERRORS, 409: {"description": "Gene is not live or belongs to another organism"}},
+    dependencies=[Depends(requires("project_id", "editor")), Depends(rate_limit("provider"))],
 )
 async def add_project_entity(project_id: uuid.UUID, data: AddEntityRequest, entities: Entities) -> ProjectEntityRead:
     """Import a gene (NCBI Gene, UniProtKB, Ensembl, Open Targets for human) and pin it to the project.
@@ -137,7 +152,11 @@ async def add_project_entity(project_id: uuid.UUID, data: AddEntityRequest, enti
     return _project_entity(link, entity)
 
 
-@router.delete("/projects/{project_id}/entities/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/projects/{project_id}/entities/{entity_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(requires("project_id", "editor"))],
+)
 async def remove_project_entity(project_id: uuid.UUID, entity_id: uuid.UUID, entities: Entities) -> Response:
     """Unpin the gene from the project. The stored entity and its relations stay for other projects."""
     await entities.remove_from_project(project_id, entity_id)

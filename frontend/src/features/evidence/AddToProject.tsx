@@ -3,17 +3,18 @@ import { Link } from 'react-router'
 import { ErrorNotice } from '../../components/ErrorNotice'
 import { Button } from '../../components/ui'
 import { useAddSource } from '../../lib/api/evidence'
-import { useProjects } from '../../lib/api/workspace'
+import { canEdit, useProjects } from '../../lib/api/workspace'
 
-/** Queue ingestion of a PubMed record into a project's evidence library. */
+/** Queue ingestion of a PubMed record into a project's evidence library (only projects the user can edit). */
 export function AddToProject({ pmid }: { pmid: string }) {
   const projects = useProjects(200)
+  const writable = projects.data?.items.filter((p) => canEdit(p.role))
   const [projectId, setProjectId] = useState('')
-  const selected = projectId || projects.data?.items[0]?.id || ''
+  const selected = projectId || writable?.[0]?.id || ''
   const add = useAddSource(selected)
 
-  if (!projects.data || projects.data.items.length === 0) {
-    return projects.data ? (
+  if (!writable || writable.length === 0) {
+    return writable ? (
       <p className="text-xs text-slate-500">
         <Link to="/projects" className="text-teal-700 hover:underline">
           Create a project
@@ -38,7 +39,7 @@ export function AddToProject({ pmid }: { pmid: string }) {
           }}
           className="max-w-56 rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-700"
         >
-          {projects.data.items.map((p) => (
+          {writable.map((p) => (
             <option key={p.id} value={p.id}>
               {p.title}
             </option>

@@ -6,6 +6,7 @@ import { ApiError } from '../../lib/api/client'
 import {
   MESSAGE_MAX_LENGTH,
   TITLE_MAX_LENGTH,
+  canEdit,
   useConversation,
   useDeleteConversation,
   useMessages,
@@ -172,7 +173,8 @@ function MessageItem({ message }: { message: Message }) {
         className={`max-w-[75%] rounded-lg px-3 py-2 ${isUser ? 'bg-teal-700 text-white' : 'border border-slate-200 bg-white text-slate-900'}`}
       >
         <p className={`mb-0.5 text-xs ${isUser ? 'text-teal-100' : 'text-slate-400'}`}>
-          {roleLabel[message.role]} · #{message.sequence} · {formatDateTime(message.created_at)}
+          {(isUser && message.author_name) || roleLabel[message.role]} · #{message.sequence} ·{' '}
+          {formatDateTime(message.created_at)}
         </p>
         {isUser ? (
           // User text is shown verbatim, never interpreted as HTML or Markdown.
@@ -287,7 +289,15 @@ function Composer({ conversationId, busy }: { conversationId: string; busy: bool
   )
 }
 
-function ConversationHeader({ conversation, projectTitle }: { conversation: Conversation; projectTitle?: string }) {
+function ConversationHeader({
+  conversation,
+  projectTitle,
+  editable,
+}: {
+  conversation: Conversation
+  projectTitle?: string
+  editable: boolean
+}) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(conversation.title)
   const update = useUpdateConversation(conversation.id)
@@ -345,14 +355,16 @@ function ConversationHeader({ conversation, projectTitle }: { conversation: Conv
       ) : (
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-semibold text-slate-900">{conversation.title}</h1>
-          <div className="flex shrink-0 gap-2">
-            <Button variant="secondary" onClick={() => setEditing(true)}>
-              Rename
-            </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={remove.isPending}>
-              Delete
-            </Button>
-          </div>
+          {editable ? (
+            <div className="flex shrink-0 gap-2">
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Rename
+              </Button>
+              <Button variant="danger" onClick={handleDelete} disabled={remove.isPending}>
+                Delete
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
       {update.error ? <ErrorNotice error={update.error} title="Could not rename" /> : null}
@@ -373,6 +385,8 @@ export function ConversationPage() {
   const messageCount = messages.data?.length ?? 0
   const latestRun = runs.data?.[0]
   const busy = latestRun !== undefined && ACTIVE_STATUSES[latestRun.status]
+  // Until the project (and so the caller's role) loads, assume write access; the server enforces it anyway.
+  const editable = project.data ? canEdit(project.data.role) : true
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ block: 'end' })
@@ -394,7 +408,11 @@ export function ConversationPage() {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <ConversationHeader conversation={conversation.data} projectTitle={project.data?.title} />
+      <ConversationHeader
+        conversation={conversation.data}
+        projectTitle={project.data?.title}
+        editable={editable}
+      />
       <Card className="flex-1 overflow-y-auto bg-slate-50">
         {messages.isPending ? (
           <p className="text-sm text-slate-500">Loading messages…</p>
@@ -422,7 +440,11 @@ export function ConversationPage() {
         ) : null}
         <div ref={bottomRef} />
       </Card>
-      <Composer conversationId={conversationId} busy={busy} />
+      {editable ? (
+        <Composer conversationId={conversationId} busy={busy} />
+      ) : (
+        <p className="text-sm text-slate-500">You have read-only access to this project.</p>
+      )}
     </div>
   )
 }

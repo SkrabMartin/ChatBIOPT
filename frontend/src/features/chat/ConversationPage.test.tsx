@@ -12,7 +12,17 @@ const C = 'c-1'
 const now = '2026-10-23T10:00:00Z'
 
 function message(sequence: number, content: string, role: Message['role'] = 'user', runId: string | null = null): Message {
-  return { id: `m-${sequence}`, conversation_id: C, sequence, role, content, run_id: runId, created_at: now }
+  return {
+    id: `m-${sequence}`,
+    conversation_id: C,
+    sequence,
+    role,
+    content,
+    run_id: runId,
+    author_id: role === 'user' ? 'u-1' : null,
+    author_name: role === 'user' ? 'Ada Researcher' : null,
+    created_at: now,
+  }
 }
 
 function run(overrides: Partial<Run> = {}): Run {
@@ -66,7 +76,15 @@ const models = {
 function baseRoutes(state: { messages: Message[]; runs: Run[] }): Routes {
   return {
     [`GET /api/v1/projects/${P}`]: () =>
-      jsonResponse({ id: P, title: 'TP53', description: null, conversation_count: 1, created_at: now, updated_at: now }),
+      jsonResponse({
+        id: P,
+        title: 'TP53',
+        description: null,
+        conversation_count: 1,
+        created_at: now,
+        updated_at: now,
+        role: 'editor',
+      }),
     [`GET /api/v1/conversations/${C}`]: () =>
       jsonResponse({
         id: C,

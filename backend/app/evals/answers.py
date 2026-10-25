@@ -1,8 +1,11 @@
 """End-to-end answer evaluation (blueprint §10.2): no RAG vs hybrid vs hybrid + reranker, through the real API.
 
+    BIORESEARCH_EMAIL=you@example.org BIORESEARCH_PASSWORD=... \
     python -m app.evals.answers --api http://127.0.0.1:8080/api/v1 --project <uuid> \
         --dataset ../evals/datasets/answers-test-v0.1.jsonl --model local-general --judge local-general \
         --rerank llm-listwise-small --out ../evals/reports/answers-test-v0.1.json
+
+The runner signs in as that user (who needs the editor role in the project).
 
 Every question is asked in a fresh conversation of the given project (so runs, evidence and claims are stored and
 inspectable like any other). Metrics:
@@ -19,6 +22,7 @@ The judge is an LLM from the registry: an automated, non-independent proxy for e
 import argparse
 import asyncio
 import json
+import os
 import time
 import uuid
 from datetime import UTC, datetime
@@ -34,6 +38,7 @@ from app.ai.gateway.router import ModelRouter
 from app.ai.grounding import parse_answer, render_evidence
 from app.ai.prompts.research_assistant import GROUNDED_SYSTEM_PROMPT
 from app.ai.registry import ModelProfile, load_registry
+from app.auth.deps import CSRF_HEADER, CSRF_VALUE
 from app.core.config import get_settings
 from app.db.session import create_engine
 from app.evals.metrics import percentile
@@ -194,8 +199,12 @@ async def evaluate(
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with (
         httpx.AsyncClient(timeout=settings.model_read_timeout_s) as model_http,
-        httpx.AsyncClient(base_url=api_url, timeout=900) as api_http,
+        httpx.AsyncClient(base_url=api_url, timeout=900, headers={CSRF_HEADER: CSRF_VALUE}) as api_http,
     ):
+        credentials = {"email": os.environ.get("BIORESEARCH_EMAIL"), "password": os.environ.get("BIORESEARCH_PASSWORD")}
+        if not all(credentials.values()):
+            raise SystemExit("set BIORESEARCH_EMAIL and BIORESEARCH_PASSWORD (a user with editor role in the project)")
+        (await api_http.post("/auth/login", json=credentials)).raise_for_status()
         router = ModelRouter(
             load_registry(settings.model_registry_path),
             model_http,

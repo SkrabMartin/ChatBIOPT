@@ -74,4 +74,6 @@ class Message(Base):
     run_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("runs.id", ondelete="SET NULL"), nullable=True, unique=True
     )
+    # Set for user messages: who wrote it (null for messages written before M09 and for assistant messages).
+    author_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = _created_at()

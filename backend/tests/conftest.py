@@ -1,6 +1,8 @@
 import os
+import uuid
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.auth.deps import CSRF_HEADER, CSRF_VALUE
+from app.auth.service import AuthService
 from app.core.config import Settings
 from app.db.session import create_engine
 from app.main import create_app
@@ -71,6 +75,34 @@ def make_settings(database_url: str, **overrides: Any) -> Settings:
     return Settings(_env_file=None, **values)
 
 
+TEST_PASSWORD = "correct horse battery staple"
+
+
+@dataclass(frozen=True)
+class Account:
+    id: uuid.UUID
+    email: str
+    password: str = TEST_PASSWORD
+
+
+async def create_user(database_url: str, email: str, *, admin: bool = False) -> Account:
+    settings = make_settings(database_url)
+    engine = create_engine(settings)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            user = await AuthService(session, settings).create_user(
+                email, email.split("@")[0].title(), TEST_PASSWORD, is_admin=admin
+            )
+    finally:
+        await engine.dispose()
+    return Account(user.id, user.email)
+
+
+async def login(client: AsyncClient, user: Account) -> None:
+    response = await client.post("/api/v1/auth/login", json={"email": user.email, "password": user.password})
+    assert response.status_code == 200, response.text
+
+
 @asynccontextmanager
 async def running_app(
     settings: Settings,
@@ -78,16 +110,22 @@ async def running_app(
     ollama: FakeOllama | None = None,
     europepmc: FakeEuropePMC | None = None,
     entities: FakeEntitySources | None = None,
+    user: Account | None = None,
 ) -> AsyncIterator[AsyncClient]:
     """A fresh app instance (own engine and pool) with its lifespan running: one simulated process start.
 
     Outbound HTTP always goes to fakes: tests never reach NCBI, Europe PMC, entity providers or a model server.
+    The client sends the CSRF header like the web UI does and, if `user` is given, is signed in as that user.
     """
     upstreams = FakeUpstreams(ncbi or FakeNCBI(), ollama or FakeOllama(), europepmc, entities)
     app = create_app(settings, http_transport=httpx.MockTransport(upstreams.handle))
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=transport, base_url="http://test", headers={CSRF_HEADER: CSRF_VALUE}
+        ) as client:
+            if user is not None:
+                await login(client, user)
             yield client
 
 
@@ -117,6 +155,13 @@ def object_store_path(tmp_path: Path) -> Path:
 
 
 StartApp = Callable[..., AbstractAsyncContextManager[AsyncClient]]
+_DEFAULT_USER = object()
+
+
+@pytest.fixture
+async def user(migrated_database: str) -> Account:
+    """The signed-in user of `client` and `start_app()` (owner of every project it creates)."""
+    return await create_user(migrated_database, "alice@example.org")
 
 
 @pytest.fixture
@@ -127,15 +172,22 @@ def start_app(
     europepmc: FakeEuropePMC,
     entity_sources: FakeEntitySources,
     object_store_path: Path,
+    user: Account,
 ) -> StartApp:
-    """Start an app on the migrated test DB; keyword arguments override settings."""
-    return lambda **overrides: running_app(
-        make_settings(migrated_database, object_store_path=object_store_path, **overrides),
-        ncbi,
-        ollama,
-        europepmc,
-        entity_sources,
-    )
+    """Start an app on the migrated test DB, signed in as `user` (`as_user=` another user or None for anonymous);
+    other keyword arguments override settings."""
+
+    def start(as_user: object = _DEFAULT_USER, **overrides: Any) -> AbstractAsyncContextManager[AsyncClient]:
+        return running_app(
+            make_settings(migrated_database, object_store_path=object_store_path, **overrides),
+            ncbi,
+            ollama,
+            europepmc,
+            entity_sources,
+            user if as_user is _DEFAULT_USER else as_user,  # type: ignore[arg-type]
+        )
+
+    return start
 
 
 @pytest.fixture

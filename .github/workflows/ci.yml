@@ -77,19 +77,37 @@ jobs:
         run: |
           curl --fail --silent --show-error http://127.0.0.1:8080/ | grep -q "<div id=\"root\">"
           curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
-          # Entity routes and migration 0008 are live (no provider call: CI does not depend on NCBI/UniProt uptime)
-          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | grep -q '"migration_revision":"0008"'
-          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/entities/organisms | jq -e '.[] | select(.taxon_id == 9606)' >/dev/null
+          # Migration 0009 (accounts) is live; everything except health and sign-in needs a session
+          curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health | grep -q '"migration_revision":"0009"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/projects)" = 401
+      - name: Sign in and use the workspace
+        env:
+          BIORESEARCH_PASSWORD: ci-smoke-password-123
+        run: |
+          docker compose exec -T -e BIORESEARCH_PASSWORD backend \
+            python -m app.cli create-user --email ci@example.org --name "CI" --admin
+          api=http://127.0.0.1:8080/api/v1
+          csrf='X-Requested-With: BioResearchAI'
+          # Without the CSRF header a state change is refused even with valid credentials
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST $api/auth/login -H 'Content-Type: application/json' \
+            -d "{\"email\":\"ci@example.org\",\"password\":\"$BIORESEARCH_PASSWORD\"}")" = 403
+          curl -fsS -c jar -X POST $api/auth/login -H "$csrf" -H 'Content-Type: application/json' \
+            -d "{\"email\":\"ci@example.org\",\"password\":\"$BIORESEARCH_PASSWORD\"}" >/dev/null
+          grep -q bioresearch_session jar
+          curl -fsS -b jar $api/entities/organisms | jq -e '.[] | select(.taxon_id == 9606)' >/dev/null
       - name: Workspace data survives a full stack restart
         run: |
           api=http://127.0.0.1:8080/api/v1
-          project=$(curl -fsS -X POST $api/projects -H 'Content-Type: application/json' -d '{"title":"CI smoke"}' | jq -r .id)
-          conversation=$(curl -fsS -X POST $api/projects/$project/conversations -H 'Content-Type: application/json' -d '{"title":"thread"}' | jq -r .id)
-          curl -fsS -X POST $api/conversations/$conversation/messages -H 'Content-Type: application/json' -d '{"content":"persist me"}' >/dev/null
+          csrf='X-Requested-With: BioResearchAI'
+          project=$(curl -fsS -b jar -X POST $api/projects -H "$csrf" -H 'Content-Type: application/json' -d '{"title":"CI smoke"}' | jq -r .id)
+          conversation=$(curl -fsS -b jar -X POST $api/projects/$project/conversations -H "$csrf" -H 'Content-Type: application/json' -d '{"title":"thread"}' | jq -r .id)
+          curl -fsS -b jar -X POST $api/conversations/$conversation/messages -H "$csrf" -H 'Content-Type: application/json' -d '{"content":"persist me"}' >/dev/null
           docker compose down
           docker compose up -d --wait --wait-timeout 180
-          test "$(curl -fsS $api/projects/$project | jq -r .title)" = "CI smoke"
-          test "$(curl -fsS $api/conversations/$conversation/messages | jq -r '.items[0].content')" = "persist me"
+          # Sessions are server-side rows: the same cookie still works after a full restart
+          test "$(curl -fsS -b jar $api/projects/$project | jq -r .title)" = "CI smoke"
+          test "$(curl -fsS -b jar $api/conversations/$conversation/messages | jq -r '.items[0].content')" = "persist me"
+          test "$(curl -fsS -b jar $api/conversations/$conversation/messages | jq -r '.items[0].author_name')" = "CI"
       - name: UI keeps working when only the backend container is recreated
         run: |
           docker compose up -d --force-recreate --no-deps --wait backend
