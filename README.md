@@ -1,4 +1,4 @@
-# BioResearch AI
+# ChatBIOPT
 
 Evidence-based research workspace for biology and bioinformatics: verifiable literature and data sources, grounded AI answers with citations, and reproducible analyses. Research and education use only, not for clinical decisions.
 
